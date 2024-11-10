@@ -12,6 +12,7 @@ import ca.uhn.fhir.jpa.subscription.match.config.SubscriptionProcessorConfig;
 import ca.uhn.fhir.jpa.subscription.match.config.WebsocketDispatcherConfig;
 import ca.uhn.fhir.jpa.subscription.submit.config.SubscriptionSubmitterConfig;
 import ca.uhn.fhir.rest.server.RestfulServer;
+import custom.interceptor.CapabilityStatementEx;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
 import org.springframework.boot.SpringApplication;
@@ -62,7 +63,12 @@ public class Application extends SpringBootServletInitializer {
 		servletRegistrationBean.addUrlMappings("/fhir/*");
 		servletRegistrationBean.setLoadOnStartup(1);
 
+		//restfulServer.registerInterceptor(new AuthorizationInterceptor());
+
+		// Register CapabilityStatementEx
+		restfulServer.registerInterceptor(new CapabilityStatementEx());
+		// Register CapabilityStatementEx
+
 		return servletRegistrationBean;
 	}
-
 }
