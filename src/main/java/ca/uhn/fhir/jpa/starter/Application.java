@@ -12,6 +12,7 @@ import ca.uhn.fhir.jpa.subscription.match.config.SubscriptionProcessorConfig;
 import ca.uhn.fhir.jpa.subscription.match.config.WebsocketDispatcherConfig;
 import ca.uhn.fhir.jpa.subscription.submit.config.SubscriptionSubmitterConfig;
 import ca.uhn.fhir.rest.server.RestfulServer;
+import ca.uhn.fhir.wellknown.WellKnownServlet;
 import custom.interceptor.CapabilityStatementEx;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
@@ -59,11 +60,10 @@ public class Application extends SpringBootServletInitializer {
 	public ServletRegistrationBean hapiServletRegistration(RestfulServer restfulServer) {
 		ServletRegistrationBean servletRegistrationBean = new ServletRegistrationBean();
 		beanFactory.autowireBean(restfulServer);
+
 		servletRegistrationBean.setServlet(restfulServer);
 		servletRegistrationBean.addUrlMappings("/fhir/*");
 		servletRegistrationBean.setLoadOnStartup(1);
-
-		//restfulServer.registerInterceptor(new AuthorizationInterceptor());
 
 		// Register CapabilityStatementEx
 		restfulServer.registerInterceptor(new CapabilityStatementEx());
@@ -71,4 +71,16 @@ public class Application extends SpringBootServletInitializer {
 
 		return servletRegistrationBean;
 	}
+
+	@Bean
+	public ServletRegistrationBean<WellKnownServlet> wellKnownServlet() {
+		// Register the servlet with the desired URL pattern
+		ServletRegistrationBean<WellKnownServlet> bean = new ServletRegistrationBean<>(new WellKnownServlet(), "/fhir/.well-known/*");
+		bean.setLoadOnStartup(1);
+		return bean;
+		//return new ServletRegistrationBean<>(new WellKnownServlet(), "/.well-known/*");
+	}
+
 }
+
+
