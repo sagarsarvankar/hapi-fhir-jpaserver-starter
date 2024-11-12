@@ -13,6 +13,7 @@ import ca.uhn.fhir.jpa.subscription.match.config.WebsocketDispatcherConfig;
 import ca.uhn.fhir.jpa.subscription.submit.config.SubscriptionSubmitterConfig;
 import ca.uhn.fhir.rest.server.RestfulServer;
 import ca.uhn.fhir.wellknown.WellKnownServlet;
+import custom.interceptor.AuthorizationInterceptorEx;
 import custom.interceptor.CapabilityStatementEx;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
@@ -68,6 +69,10 @@ public class Application extends SpringBootServletInitializer {
 		// Register CapabilityStatementEx
 		restfulServer.registerInterceptor(new CapabilityStatementEx());
 		// Register CapabilityStatementEx
+
+		// Register AuthorizationInterceptorEx
+		restfulServer.registerInterceptor(new AuthorizationInterceptorEx());
+		// Register AuthorizationInterceptorEx
 
 		return servletRegistrationBean;
 	}
