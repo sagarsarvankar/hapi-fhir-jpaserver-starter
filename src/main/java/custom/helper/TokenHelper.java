@@ -1,9 +1,9 @@
 package custom.helper;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.List;
+import custom.object.TokenDetails;
+
+import java.time.Instant;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class TokenHelper {
@@ -17,6 +17,20 @@ public class TokenHelper {
 
 		return Arrays.stream(scopesArray).filter(scope -> !"".equals(scope))
 			.collect(Collectors.toList());
+	}
+
+	public static boolean isTokenExpired(TokenDetails tokenDetails) {
+		Long expDate = Long.parseLong(tokenDetails.exp);
+		// Date expirationDate = new Date(expDate * 1000);
+
+		Instant expirationInstant = Instant.ofEpochSecond(expDate);
+
+		// Get the current time as an Instant in UTC
+		Instant currentInstant = Instant.now();
+
+		// Compare the instants
+		boolean isExpired = currentInstant.isAfter(expirationInstant);
+		return isExpired;
 	}
 
 	public static String DecodeToken(String token) {
