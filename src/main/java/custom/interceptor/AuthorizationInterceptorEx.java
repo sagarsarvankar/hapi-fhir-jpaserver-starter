@@ -9,6 +9,7 @@ import ca.uhn.fhir.rest.server.interceptor.auth.IAuthRule;
 import ca.uhn.fhir.rest.server.interceptor.auth.RuleBuilder;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import custom.helper.Scope;
 import custom.helper.TokenHelper;
 import custom.object.TokenDetails;
 
@@ -23,20 +24,25 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 
 	private static final String BEARER_TOKEN_PREFIX = "Bearer ";
 
+	private TokenDetails GetTokenDetailsFromTokenString(String bearerToken) throws JsonProcessingException {
+		String DecodedToken = TokenHelper.DecodeToken(bearerToken);
+
+		ObjectMapper objectMapper = new ObjectMapper();
+		TokenDetails tokendets = objectMapper.readValue(DecodedToken, TokenDetails.class);
+
+		return tokendets;
+	}
+
 	@Hook(Pointcut.SERVER_INCOMING_REQUEST_PRE_HANDLED)
 	public void authorizeRequest(RequestDetails requestDetails) throws JsonProcessingException {
-
-		// Extract token from the Authorization header
-		String bearerToken = requestDetails.getHeader(AUTHORIZATION_HEADER);
 
 		if (CONFORMANCE_PATH_METADATA.equals(requestDetails.getRequestPath()) ||
 			CONFORMANCE_PATH_WELLKNOWN_OPENID.equals(requestDetails.getRequestPath()) ||
 			CONFORMANCE_PATH_WELLKNOWN_SMART.equals(requestDetails.getRequestPath())) {
 		}
-
-
 		else
 		{
+			String bearerToken = requestDetails.getHeader(AUTHORIZATION_HEADER);
 
 			if (bearerToken == null || bearerToken.isEmpty()) {
 				// Throw an HTTP 401
@@ -46,13 +52,10 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 
 			bearerToken = bearerToken.replaceFirst(BEARER_TOKEN_PREFIX, "");
 
-			String DecodedToken = TokenHelper.DecodeToken(bearerToken);
-
-			ObjectMapper objectMapper = new ObjectMapper();
-			TokenDetails tokendets = objectMapper.readValue(DecodedToken, TokenDetails.class);
+			TokenDetails tokendets = GetTokenDetailsFromTokenString(bearerToken);
 
 			// Validate the token using your custom method
-			if (validateToken(bearerToken)) {
+			if (validateToken(tokendets)) {
 				// Throw an HTTP 401
 				//throw new AuthenticationException(Msg.code(644) + "Missing or invalid Authorization header value");
 				throw new AuthenticationException("Authorization token is invalid");
@@ -62,14 +65,106 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 
 	}
 
-	private boolean validateToken(String token) throws JsonProcessingException {
+	private boolean validateToken(TokenDetails tokendets) throws JsonProcessingException {
 		// Implement your token validation logic here
-		String DecodedToken = TokenHelper.DecodeToken(token);
-		ObjectMapper objectMapper = new ObjectMapper();
-		TokenDetails tokendets = objectMapper.readValue(DecodedToken, TokenDetails.class);
-
 		return TokenHelper.isTokenExpired(tokendets);
 	}
+
+	private boolean checkSystemScopes(String resourceType, Scope.Permission requiredPermission,
+												 List<String> grantedscopes) {
+		boolean bApproved = true;
+
+		if (!isApprovedByScopes(resourceType, requiredPermission, grantedscopes)) {
+			bApproved = false;
+		}
+
+		return  bApproved;
+	}
+
+	private boolean isApprovedByScopes(String resourceType, Scope.Permission requiredPermission, List<String> grantedScopes) {
+		if (grantedScopes == null) {
+			return false;
+		}
+
+		for (String scope : grantedScopes) {
+			Scope sc = new Scope(scope);
+			// "Resource" is used for "*" which applies to all resource types
+
+			if (sc.getResourceType().isEmpty() || sc.getResourceType().isBlank())
+			{
+			}
+			else {
+				if (sc.getResourceType() == "*"
+					|| sc.getResourceType().equals(resourceType)) {
+					if (hasPermission(sc.getPermission(), requiredPermission)) {
+
+						return true;
+					}
+				}
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * @param grantedPermission
+	 * @param requiredPermission
+	 * @return true if the grantedPermission includes the requiredPermission; otherwise false
+	 */
+	private boolean hasPermission(Scope.Permission grantedPermission, Scope.Permission requiredPermission) {
+		boolean permittedValue = false;
+
+		if (grantedPermission == Scope.Permission.ALL) {
+			return true;
+		} else {
+			switch(grantedPermission.value()){
+				case "cruds":
+					if (requiredPermission.value().equals("read") || requiredPermission.value().equals("write")){
+						permittedValue = true;
+					}
+					break;
+				case "rs":
+					if (requiredPermission.value().equals("read")){
+						permittedValue = true;
+					}
+					break;
+				case "read":
+					if (requiredPermission.value().equals("read")){
+						permittedValue = true;
+					}
+					break;
+				case "write":
+					if (requiredPermission.value().equals("read") || requiredPermission.value().equals("write")){
+						permittedValue = true;
+					}
+					break;
+			}
+
+			if (permittedValue){
+				return permittedValue;
+			}
+			else{
+				return grantedPermission == requiredPermission;
+			}
+		}
+	}
+
+	private boolean AllowAccess(TokenDetails tokenDetails, Scope.Permission neededPermission, String resourceType) {
+		boolean returnValue = false;
+
+		try {
+			//Scope.Permission neededPermission = Scope.Permission.READ;
+			//Set<String> resourceTypes;
+			List<String> ScopesFromToken = TokenHelper.getScopesListByScopeString(tokenDetails.scope);
+			returnValue = checkSystemScopes(resourceType, neededPermission, ScopesFromToken);
+		}
+		catch (Exception e){
+
+		}
+
+		return returnValue;
+	}
+
 
 	@Override
 	public List<IAuthRule> buildRuleList(RequestDetails requestDetails) {
@@ -88,6 +183,19 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 		}
 
 		else {
+
+			String bearerToken = requestDetails.getHeader(AUTHORIZATION_HEADER);
+			bearerToken = bearerToken.replaceFirst(BEARER_TOKEN_PREFIX, "");
+
+			TokenDetails tokendets = new TokenDetails();
+			try{
+				tokendets = GetTokenDetailsFromTokenString(bearerToken);
+			}
+			catch (Exception e){	}
+
+			boolean allowAccess = false;
+			allowAccess = AllowAccess(tokendets, Scope.Permission.READ, requestDetails.getRequestPath());
+
 			return new RuleBuilder()
 
 				// 1. Allow all users to access the /metadata endpoint without restriction
