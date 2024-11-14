@@ -2,6 +2,7 @@ package custom.interceptor;
 
 import ca.uhn.fhir.interceptor.api.Hook;
 import ca.uhn.fhir.interceptor.api.Pointcut;
+import ca.uhn.fhir.rest.api.RequestTypeEnum;
 import ca.uhn.fhir.rest.api.server.RequestDetails;
 import ca.uhn.fhir.rest.server.exceptions.AuthenticationException;
 import ca.uhn.fhir.rest.server.interceptor.auth.AuthorizationInterceptor;
@@ -13,6 +14,7 @@ import custom.helper.Scope;
 import custom.helper.TokenHelper;
 import custom.object.TokenDetails;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
@@ -51,7 +53,6 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 			}
 
 			bearerToken = bearerToken.replaceFirst(BEARER_TOKEN_PREFIX, "");
-
 			TokenDetails tokendets = GetTokenDetailsFromTokenString(bearerToken);
 
 			// Validate the token using your custom method
@@ -166,6 +167,23 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 	}
 
 
+	private Scope.Permission GetNeededPermission(RequestDetails requestDetails) {
+		Scope.Permission neededPermission = Scope.Permission.READ;
+
+		RequestTypeEnum requestType = requestDetails.getRequestType();
+
+		switch (requestType)
+		{
+			case GET -> neededPermission = Scope.Permission.READ;
+			case POST -> neededPermission = Scope.Permission.WRITE;
+			case PUT -> neededPermission = Scope.Permission.WRITE;
+			case DELETE -> neededPermission = Scope.Permission.WRITE;
+			default -> neededPermission = Scope.Permission.READ;
+		}
+
+		return neededPermission;
+	}
+
 	@Override
 	public List<IAuthRule> buildRuleList(RequestDetails requestDetails) {
 		// Define authorization rules based on validated token or other criteria
@@ -194,8 +212,53 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 			catch (Exception e){	}
 
 			boolean allowAccess = false;
-			allowAccess = AllowAccess(tokendets, Scope.Permission.READ, requestDetails.getRequestPath());
 
+			//
+			Scope.Permission neededPermission = GetNeededPermission(requestDetails);
+			//String
+			//
+			List<IAuthRule> ruleList = new ArrayList<IAuthRule>();
+			String resourceType = requestDetails.getResourceName();
+			allowAccess = AllowAccess(tokendets, neededPermission, resourceType);
+
+			if (allowAccess){
+				RequestTypeEnum requestType = requestDetails.getRequestType();
+
+				switch (requestType)
+				{
+					case GET ->
+						ruleList = new RuleBuilder()
+							.allow().read().resourcesOfType(resourceType).withAnyId().andThen()
+							.build();
+					case POST ->
+						ruleList = new RuleBuilder()
+							.allow().write().resourcesOfType(resourceType).withAnyId().andThen()
+							.allow().read().resourcesOfType(resourceType).withAnyId().andThen()
+							.build();
+					case PUT ->
+						ruleList = new RuleBuilder()
+							.allow().write().resourcesOfType(resourceType).withAnyId().andThen()
+							.allow().read().resourcesOfType(resourceType).withAnyId().andThen()
+							.build();
+					case DELETE ->
+						ruleList = new RuleBuilder()
+							.allow().delete().resourcesOfType(resourceType).withAnyId().andThen()
+							.allow().read().resourcesOfType(resourceType).withAnyId().andThen()
+							.build();
+					default ->
+						ruleList = new RuleBuilder()
+							.allow().read().resourcesOfType(resourceType).withAnyId().andThen()
+							.build();
+				}
+			}
+			else{
+				ruleList = new RuleBuilder()
+				.denyAll("Deny all other requests")
+					.build();
+			}
+
+			return ruleList;
+			/*
 			return new RuleBuilder()
 
 				// 1. Allow all users to access the /metadata endpoint without restriction
@@ -217,6 +280,7 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 				// 6. Deny all other access (default deny-all policy for security)
 				.denyAll("Deny all other requests")
 				.build();
+			*/
 		}
 	}
 }
