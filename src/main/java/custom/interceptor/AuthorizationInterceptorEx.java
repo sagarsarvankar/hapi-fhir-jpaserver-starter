@@ -10,12 +10,15 @@ import ca.uhn.fhir.rest.server.interceptor.auth.IAuthRule;
 import ca.uhn.fhir.rest.server.interceptor.auth.RuleBuilder;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import custom.helper.PermissionChecker;
 import custom.helper.Scope;
 import custom.helper.TokenHelper;
 import custom.object.TokenDetails;
 
 import java.util.ArrayList;
 import java.util.List;
+
+// import static custom.helper..GetNeededPermission;
 
 public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 	private static final String AUTHORIZATION_HEADER = "Authorization";
@@ -71,119 +74,6 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 		return TokenHelper.isTokenExpired(tokendets);
 	}
 
-	private boolean checkSystemScopes(String resourceType, Scope.Permission requiredPermission,
-												 List<String> grantedscopes) {
-		boolean bApproved = true;
-
-		if (!isApprovedByScopes(resourceType, requiredPermission, grantedscopes)) {
-			bApproved = false;
-		}
-
-		return  bApproved;
-	}
-
-	private boolean isApprovedByScopes(String resourceType, Scope.Permission requiredPermission, List<String> grantedScopes) {
-		if (grantedScopes == null) {
-			return false;
-		}
-
-		for (String scope : grantedScopes) {
-			Scope sc = new Scope(scope);
-			// "Resource" is used for "*" which applies to all resource types
-
-			if (sc.getResourceType().isEmpty() || sc.getResourceType().isBlank())
-			{
-			}
-			else {
-				if (sc.getResourceType() == "*"
-					|| sc.getResourceType().equals(resourceType)) {
-					if (hasPermission(sc.getPermission(), requiredPermission)) {
-
-						return true;
-					}
-				}
-			}
-		}
-		return false;
-	}
-
-	/**
-	 * @param grantedPermission
-	 * @param requiredPermission
-	 * @return true if the grantedPermission includes the requiredPermission; otherwise false
-	 */
-	private boolean hasPermission(Scope.Permission grantedPermission, Scope.Permission requiredPermission) {
-		boolean permittedValue = false;
-
-		if (grantedPermission == Scope.Permission.ALL) {
-			return true;
-		} else {
-			switch(grantedPermission.value()){
-				case "cruds":
-					if (requiredPermission.value().equals("read") || requiredPermission.value().equals("write")){
-						permittedValue = true;
-					}
-					break;
-				case "rs":
-					if (requiredPermission.value().equals("read")){
-						permittedValue = true;
-					}
-					break;
-				case "read":
-					if (requiredPermission.value().equals("read")){
-						permittedValue = true;
-					}
-					break;
-				case "write":
-					if (requiredPermission.value().equals("read") || requiredPermission.value().equals("write")){
-						permittedValue = true;
-					}
-					break;
-			}
-
-			if (permittedValue){
-				return permittedValue;
-			}
-			else{
-				return grantedPermission == requiredPermission;
-			}
-		}
-	}
-
-	private boolean AllowAccess(TokenDetails tokenDetails, Scope.Permission neededPermission, String resourceType) {
-		boolean returnValue = false;
-
-		try {
-			//Scope.Permission neededPermission = Scope.Permission.READ;
-			//Set<String> resourceTypes;
-			List<String> ScopesFromToken = TokenHelper.getScopesListByScopeString(tokenDetails.scope);
-			returnValue = checkSystemScopes(resourceType, neededPermission, ScopesFromToken);
-		}
-		catch (Exception e){
-
-		}
-
-		return returnValue;
-	}
-
-
-	private Scope.Permission GetNeededPermission(RequestDetails requestDetails) {
-		Scope.Permission neededPermission = Scope.Permission.READ;
-
-		RequestTypeEnum requestType = requestDetails.getRequestType();
-
-		switch (requestType)
-		{
-			case GET -> neededPermission = Scope.Permission.READ;
-			case POST -> neededPermission = Scope.Permission.WRITE;
-			case PUT -> neededPermission = Scope.Permission.WRITE;
-			case DELETE -> neededPermission = Scope.Permission.WRITE;
-			default -> neededPermission = Scope.Permission.READ;
-		}
-
-		return neededPermission;
-	}
-
 	@Override
 	public List<IAuthRule> buildRuleList(RequestDetails requestDetails) {
 		// Define authorization rules based on validated token or other criteria
@@ -214,12 +104,12 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 			boolean allowAccess = false;
 
 			//
-			Scope.Permission neededPermission = GetNeededPermission(requestDetails);
+			Scope.Permission neededPermission = PermissionChecker.GetNeededPermission(requestDetails);
 			//String
 			//
 			List<IAuthRule> ruleList = new ArrayList<IAuthRule>();
 			String resourceType = requestDetails.getResourceName();
-			allowAccess = AllowAccess(tokendets, neededPermission, resourceType);
+			allowAccess = PermissionChecker.AllowAccess(tokendets, neededPermission, resourceType);
 
 			if (allowAccess){
 				RequestTypeEnum requestType = requestDetails.getRequestType();
