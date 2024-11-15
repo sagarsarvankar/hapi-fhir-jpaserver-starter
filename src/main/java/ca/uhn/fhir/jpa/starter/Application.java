@@ -13,6 +13,7 @@ import ca.uhn.fhir.jpa.subscription.match.config.WebsocketDispatcherConfig;
 import ca.uhn.fhir.jpa.subscription.submit.config.SubscriptionSubmitterConfig;
 import ca.uhn.fhir.rest.server.RestfulServer;
 import ca.uhn.fhir.wellknown.WellKnownServlet;
+import custom.helper.HapiPropertiesConfig;
 import custom.interceptor.AuthorizationInterceptorEx;
 import custom.interceptor.CapabilityStatementEx;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,12 +25,15 @@ import org.springframework.boot.autoconfigure.thymeleaf.ThymeleafAutoConfigurati
 import org.springframework.boot.web.servlet.ServletComponentScan;
 import org.springframework.boot.web.servlet.ServletRegistrationBean;
 import org.springframework.boot.web.servlet.support.SpringBootServletInitializer;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Import;
 
 @ServletComponentScan(basePackageClasses = {RestfulServer.class})
 @SpringBootApplication(exclude = {ElasticsearchRestClientAutoConfiguration.class, ThymeleafAutoConfiguration.class})
+// @ComponentScan(basePackages = {"custom.helper"})
 @Import({
 	StarterCrR4Config.class,
 	StarterCrDstu3Config.class,
@@ -71,11 +75,39 @@ public class Application extends SpringBootServletInitializer {
 		// Register CapabilityStatementEx
 
 		// Register AuthorizationInterceptorEx
-		restfulServer.registerInterceptor(new AuthorizationInterceptorEx());
+		if (EnableAuthorizationInterceptor()){
+			restfulServer.registerInterceptor(new AuthorizationInterceptorEx());
+		}
 		// Register AuthorizationInterceptorEx
 
 		return servletRegistrationBean;
 	}
+
+	private static boolean EnableAuthorizationInterceptor() {
+		boolean returnValue = true;
+
+		try
+		{
+			HapiPropertiesConfig hapiConfig = new HapiPropertiesConfig();
+			String getSecurityValue = hapiConfig.getEnablesecurity();
+
+			if (getSecurityValue.toLowerCase().equals("false")){
+				returnValue = false;
+			}
+		}
+		catch (Exception e){
+
+		}
+
+		return returnValue;
+	}
+
+	private static void LoadHapiPropertiesConfig()
+	{
+		HapiPropertiesConfig hapiConfig = new HapiPropertiesConfig();
+		int kk = 0;
+	}
+
 
 	@Bean
 	public ServletRegistrationBean<WellKnownServlet> wellKnownServlet() {
@@ -83,7 +115,6 @@ public class Application extends SpringBootServletInitializer {
 		ServletRegistrationBean<WellKnownServlet> bean = new ServletRegistrationBean<>(new WellKnownServlet(), "/fhir/.well-known/*");
 		bean.setLoadOnStartup(1);
 		return bean;
-		//return new ServletRegistrationBean<>(new WellKnownServlet(), "/.well-known/*");
 	}
 
 }
