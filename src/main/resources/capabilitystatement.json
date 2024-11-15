@@ -2,7 +2,7 @@
   "resourceType": "CapabilityStatement",
   "status": "active",
   "date": "2021-06-17T18:03:00+00:00",
-  "publisher": "MITRE",
+  "publisher": "HAPI FHIR",
   "kind": "instance",
   "instantiates": [
     "http://hl7.org/fhir/us/core/CapabilityStatement/us-core-server",
@@ -10,7 +10,7 @@
   ],
   "implementation": {
     "description": "Inferno Reference Server for US Core, Bulk Data, and SMART App Launch Implementation Guides based on HAPI FHIR R4 Server",
-    "url": "$HOST"
+    "url": "YOUROAUTHSERVER"
   },
   "fhirVersion": "4.0.1",
   "format": [
@@ -31,19 +31,19 @@
             "extension": [
               {
                 "url": "token",
-                "valueUri": "$HOST/oauth/token"
+                "valueUri": "YOUROAUTHSERVER/oauth/token"
               },
               {
                 "url": "authorize",
-                "valueUri": "$HOST/oauth/authorization"
+                "valueUri": "YOUROAUTHSERVER/oauth/authorization"
               },
               {
                 "url": "revoke",
-                "valueUri": "$HOST/oauth/token/revoke-token"
+                "valueUri": "YOUROAUTHSERVER/oauth/token/revoke-token"
               },
               {
                 "url": "introspect",
-                "valueUri": "$HOST/oauth/token/introspect"
+                "valueUri": "YOUROAUTHSERVER/oauth/token/introspect"
               }
             ]
           }
@@ -1073,7 +1073,7 @@
       "operation": [
         {
           "name": "get-resource-counts",
-          "definition": "$HOST/OperationDefinition/-s-get-resource-counts"
+          "definition": "YOUROAUTHSERVER/OperationDefinition/-s-get-resource-counts"
         },
         {
           "name": "export",
