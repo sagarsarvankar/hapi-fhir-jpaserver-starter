@@ -15,7 +15,7 @@ import ca.uhn.fhir.rest.server.RestfulServer;
 import ca.uhn.fhir.wellknown.WellKnownServlet;
 import custom.helper.HapiPropertiesConfig;
 import custom.interceptor.AuthorizationInterceptorEx;
-import custom.interceptor.CapabilityStatementEx;
+import custom.metadataex.CustomCapabilityStatementProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
 import org.springframework.boot.SpringApplication;
@@ -25,15 +25,16 @@ import org.springframework.boot.autoconfigure.thymeleaf.ThymeleafAutoConfigurati
 import org.springframework.boot.web.servlet.ServletComponentScan;
 import org.springframework.boot.web.servlet.ServletRegistrationBean;
 import org.springframework.boot.web.servlet.support.SpringBootServletInitializer;
-import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Import;
 
+import java.io.IOException;
+
 @ServletComponentScan(basePackageClasses = {RestfulServer.class})
 @SpringBootApplication(exclude = {ElasticsearchRestClientAutoConfiguration.class, ThymeleafAutoConfiguration.class})
-// @ComponentScan(basePackages = {"custom.helper"})
+// @ComponentScan(basePackages = {"ca.uhn.fhir.jpa.starter", "custom.helper", "custom"})
 @Import({
 	StarterCrR4Config.class,
 	StarterCrDstu3Config.class,
@@ -47,6 +48,8 @@ import org.springframework.context.annotation.Import;
 	Batch2JobsConfig.class
 })
 public class Application extends SpringBootServletInitializer {
+
+	// public static String CAPABILITY_STATEMENT_FILE_NAME = "capabilitystatement.json";
 
 	public static void main(String[] args) {
 
@@ -62,7 +65,7 @@ public class Application extends SpringBootServletInitializer {
 
 	@Bean
 	@Conditional(OnEitherVersion.class)
-	public ServletRegistrationBean hapiServletRegistration(RestfulServer restfulServer) {
+	public ServletRegistrationBean hapiServletRegistration(RestfulServer restfulServer) throws IOException {
 		ServletRegistrationBean servletRegistrationBean = new ServletRegistrationBean();
 		beanFactory.autowireBean(restfulServer);
 
@@ -71,14 +74,22 @@ public class Application extends SpringBootServletInitializer {
 		servletRegistrationBean.setLoadOnStartup(1);
 
 		// Register CapabilityStatementEx
-		restfulServer.registerInterceptor(new CapabilityStatementEx());
+		// restfulServer.registerInterceptor(new CapabilityStatementEx());
 		// Register CapabilityStatementEx
+
 
 		// Register AuthorizationInterceptorEx
 		if (EnableAuthorizationInterceptor()){
 			restfulServer.registerInterceptor(new AuthorizationInterceptorEx());
 		}
 		// Register AuthorizationInterceptorEx
+
+
+		// This will load custom capabilitystatement
+		CustomCapabilityStatementProvider customCapabilityStatementProvider = new CustomCapabilityStatementProvider(restfulServer);
+		restfulServer.setServerConformanceProvider(customCapabilityStatementProvider);
+		// This will load custom capabilitystatement
+
 
 		return servletRegistrationBean;
 	}

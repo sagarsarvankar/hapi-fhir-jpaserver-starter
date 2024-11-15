@@ -13,7 +13,7 @@ public class HapiPropertiesConfig {
 	private Properties properties = new Properties();
 
 	public HapiPropertiesConfig() {
-		try (InputStream input = getClass().getClassLoader().getResourceAsStream("hapi.properties")) {
+		try (InputStream input = getClass().getClassLoader().getResourceAsStream(CommonHelper.HAPI_PROPERTIES_FILE_NAME)) {
 			if (input == null) {
 				System.out.println("Sorry, unable to find hapi.properties");
 				return;
