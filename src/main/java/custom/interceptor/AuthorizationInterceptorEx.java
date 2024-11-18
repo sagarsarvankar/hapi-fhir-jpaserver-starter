@@ -10,10 +10,14 @@ import ca.uhn.fhir.rest.server.interceptor.auth.IAuthRule;
 import ca.uhn.fhir.rest.server.interceptor.auth.RuleBuilder;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import custom.helper.CommonHelper;
 import custom.helper.PermissionChecker;
 import custom.helper.Scope;
 import custom.helper.TokenHelper;
 import custom.object.TokenDetails;
+import org.hl7.elm.r1.IsNull;
+import org.hl7.fhir.Observation;
+import org.hl7.fhir.r4.model.Group;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -96,21 +100,95 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 			bearerToken = bearerToken.replaceFirst(BEARER_TOKEN_PREFIX, "");
 
 			TokenDetails tokendets = new TokenDetails();
-			try{
+			try {
 				tokendets = GetTokenDetailsFromTokenString(bearerToken);
+			} catch (Exception e) {
 			}
-			catch (Exception e){	}
 
-			boolean allowAccess = false;
+			// boolean allowAccess = false;
 
 			//
 			Scope.Permission neededPermission = PermissionChecker.GetNeededPermission(requestDetails);
 			//String
 			//
 			List<IAuthRule> ruleList = new ArrayList<IAuthRule>();
-			String resourceType = requestDetails.getResourceName();
-			allowAccess = PermissionChecker.AllowAccess(tokendets, neededPermission, resourceType);
+			ruleList = new RuleBuilder()
+				.denyAll("Deny requests")
+				.build();
 
+			String resourceType = requestDetails.getResourceName();
+			String operationType = requestDetails.getOperation();
+
+			boolean AllowWrite = false;
+			boolean AllowRead = false;
+
+			if (neededPermission == Scope.Permission.READ) {
+				AllowRead = PermissionChecker.AllowAccess(tokendets, neededPermission, resourceType);
+			}
+			else {
+				AllowRead = PermissionChecker.AllowAccess(tokendets, Scope.Permission.READ, resourceType);
+				AllowWrite = PermissionChecker.AllowAccess(tokendets, neededPermission, resourceType);
+			}
+
+			/*
+			else if (neededPermission == Scope.Permission.WRITE) {
+				AllowRead = PermissionChecker.AllowAccess(tokendets, Scope.Permission.READ, resourceType);
+				AllowWrite = PermissionChecker.AllowAccess(tokendets, neededPermission, resourceType);
+			} else if (neededPermission == Scope.Permission.ALL) {
+				AllowRead = PermissionChecker.AllowAccess(tokendets, Scope.Permission.READ, resourceType);
+				AllowWrite = PermissionChecker.AllowAccess(tokendets, Scope.Permission.WRITE, resourceType);
+			}
+			*/
+
+			// This section is for $export and $export-poll-status, below checks if write or read operation
+			if ( operationType != null) {
+				if (AllowRead || AllowWrite) {
+					if (operationType.toLowerCase().equals(CommonHelper.OPERATION_TYPE_EXPORT))
+					{
+						ruleList = new RuleBuilder()
+							.allow().operation().named(CommonHelper.OPERATION_TYPE_EXPORT)
+							.atAnyLevel().andAllowAllResponsesWithAllResourcesAccess()
+							.build();
+					} else if (operationType.toLowerCase().equals(CommonHelper.OPERATION_TYPE_EXPORT_POLL_STATUS)) {
+						ruleList = new RuleBuilder()
+							.allow().operation().named(CommonHelper.OPERATION_TYPE_EXPORT_POLL_STATUS)
+							.atAnyLevel().andAllowAllResponsesWithAllResourcesAccess()
+							.build();
+					}
+					else
+					{
+						ruleList = new RuleBuilder()
+							.allow().read().resourcesOfType(resourceType).withAnyId().andThen()
+							.allow().read().resourcesOfType(CommonHelper.RESOURCE_Provenance).withAnyId().andThen()
+							.build();
+					}
+				}
+			}
+			// Below section is for regular resource fetching
+			else {
+				if (AllowRead && AllowWrite) {
+					ruleList = new RuleBuilder()
+						.allow().read().resourcesOfType(resourceType).withAnyId().andThen()
+						.allow().read().resourcesOfType(CommonHelper.RESOURCE_Provenance).withAnyId().andThen()
+						.allow().write().resourcesOfType(resourceType).withAnyId().andThen()
+						.build();
+				} else if (AllowRead) {
+					ruleList = new RuleBuilder()
+						.allow().read().resourcesOfType(resourceType).withAnyId().andThen()
+						.allow().read().resourcesOfType(CommonHelper.RESOURCE_Provenance).withAnyId().andThen()
+						.build();
+				} else if (AllowWrite) {
+					ruleList = new RuleBuilder()
+						.allow().read().resourcesOfType(resourceType).withAnyId().andThen()
+						.allow().read().resourcesOfType(CommonHelper.RESOURCE_Provenance).withAnyId().andThen()
+						.allow().write().resourcesOfType(resourceType).withAnyId().andThen()
+						.build();
+				}
+			}
+
+			return ruleList;
+
+			/*
 			if (allowAccess){
 				RequestTypeEnum requestType = requestDetails.getRequestType();
 
@@ -146,8 +224,8 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 				.denyAll("Deny all other requests")
 					.build();
 			}
+			*/
 
-			return ruleList;
 			/*
 			return new RuleBuilder()
 

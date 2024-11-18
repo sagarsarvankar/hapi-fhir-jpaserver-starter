@@ -31,7 +31,7 @@ public class PermissionChecker {
 			{
 			}
 			else {
-				if (sc.getResourceType() == "*"
+				if (sc.getResourceType().equals("*")
 					|| sc.getResourceType().equals(resourceType)) {
 					if (hasPermission(sc.getPermission(), requiredPermission)) {
 
@@ -111,7 +111,7 @@ public class PermissionChecker {
 		switch (requestType)
 		{
 			case GET -> neededPermission = Scope.Permission.READ;
-			case POST -> neededPermission = Scope.Permission.WRITE;
+			case POST -> neededPermission = Scope.Permission.ALL;
 			case PUT -> neededPermission = Scope.Permission.WRITE;
 			case DELETE -> neededPermission = Scope.Permission.WRITE;
 			default -> neededPermission = Scope.Permission.READ;
