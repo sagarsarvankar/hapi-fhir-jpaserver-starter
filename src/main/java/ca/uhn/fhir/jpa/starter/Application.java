@@ -13,8 +13,10 @@ import ca.uhn.fhir.jpa.subscription.match.config.WebsocketDispatcherConfig;
 import ca.uhn.fhir.jpa.subscription.submit.config.SubscriptionSubmitterConfig;
 import ca.uhn.fhir.rest.server.RestfulServer;
 import ca.uhn.fhir.wellknown.WellKnownServlet;
+import custom.bulkexport.BulkExportProvider;
 import custom.helper.HapiPropertiesConfig;
 import custom.interceptor.AuthorizationInterceptorEx;
+import custom.interceptor.BulkInterceptor;
 import custom.metadataex.CustomCapabilityStatementProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
@@ -76,6 +78,11 @@ public class Application extends SpringBootServletInitializer {
 		// Register CapabilityStatementEx
 		// restfulServer.registerInterceptor(new CapabilityStatementEx());
 		// Register CapabilityStatementEx
+
+		// Below BulkInterceptor is from Inferno
+		// restfulServer.registerInterceptor(new BulkInterceptor(restfulServer.getFhirContext()));
+
+		//restfulServer.registerProvider(new BulkExportProvider());
 
 
 		// Register AuthorizationInterceptorEx

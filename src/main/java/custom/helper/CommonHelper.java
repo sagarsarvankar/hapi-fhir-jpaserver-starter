@@ -6,4 +6,5 @@ public class CommonHelper {
 	public static String RESOURCE_Provenance = "Provenance";
 	public static String OPERATION_TYPE_EXPORT = "$export";
 	public static String OPERATION_TYPE_EXPORT_POLL_STATUS = "$export-poll-status";
+	public static String URL_PARAMETER_INCLUDE = "_include";
 }

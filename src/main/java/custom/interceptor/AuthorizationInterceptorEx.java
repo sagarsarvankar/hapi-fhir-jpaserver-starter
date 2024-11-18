@@ -21,6 +21,7 @@ import org.hl7.fhir.r4.model.Group;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 // import static custom.helper..GetNeededPermission;
 
@@ -143,13 +144,16 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 			// This section is for $export and $export-poll-status, below checks if write or read operation
 			if ( operationType != null) {
 				if (AllowRead || AllowWrite) {
+
 					if (operationType.toLowerCase().equals(CommonHelper.OPERATION_TYPE_EXPORT))
 					{
 						ruleList = new RuleBuilder()
 							.allow().operation().named(CommonHelper.OPERATION_TYPE_EXPORT)
 							.atAnyLevel().andAllowAllResponsesWithAllResourcesAccess()
 							.build();
-					} else if (operationType.toLowerCase().equals(CommonHelper.OPERATION_TYPE_EXPORT_POLL_STATUS)) {
+					}
+
+					else if (operationType.toLowerCase().equals(CommonHelper.OPERATION_TYPE_EXPORT_POLL_STATUS)) {
 						ruleList = new RuleBuilder()
 							.allow().operation().named(CommonHelper.OPERATION_TYPE_EXPORT_POLL_STATUS)
 							.atAnyLevel().andAllowAllResponsesWithAllResourcesAccess()
@@ -166,23 +170,52 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 			}
 			// Below section is for regular resource fetching
 			else {
+				/*
 				if (AllowRead && AllowWrite) {
 					ruleList = new RuleBuilder()
 						.allow().read().resourcesOfType(resourceType).withAnyId().andThen()
 						.allow().read().resourcesOfType(CommonHelper.RESOURCE_Provenance).withAnyId().andThen()
+
 						.allow().write().resourcesOfType(resourceType).withAnyId().andThen()
+
+						.build();
+				}
+				*/
+				if (AllowWrite) {
+					ruleList = new RuleBuilder()
+						.allow().read().resourcesOfType(resourceType).withAnyId().andThen()
+						.allow().read().resourcesOfType(CommonHelper.RESOURCE_Provenance).withAnyId().andThen()
+
+						.allow().write().resourcesOfType(resourceType).withAnyId().andThen()
+
 						.build();
 				} else if (AllowRead) {
 					ruleList = new RuleBuilder()
 						.allow().read().resourcesOfType(resourceType).withAnyId().andThen()
 						.allow().read().resourcesOfType(CommonHelper.RESOURCE_Provenance).withAnyId().andThen()
 						.build();
-				} else if (AllowWrite) {
-					ruleList = new RuleBuilder()
-						.allow().read().resourcesOfType(resourceType).withAnyId().andThen()
-						.allow().read().resourcesOfType(CommonHelper.RESOURCE_Provenance).withAnyId().andThen()
-						.allow().write().resourcesOfType(resourceType).withAnyId().andThen()
-						.build();
+
+					boolean bIncludePresent = false;
+					// Does parameter in URL contain _include, then allow all read
+					Map<String, String[]> urlParameters = requestDetails.getParameters();
+					for (Map.Entry<String, String[]> entry : urlParameters.entrySet()) {
+						String key = entry.getKey(); // Get the parameter name
+						//String[] values = entry.getValue(); // Get the parameter values
+
+						if (key.equals(CommonHelper.URL_PARAMETER_INCLUDE)) {
+							bIncludePresent = true;
+							break;
+						}
+					}
+
+					if(bIncludePresent) {
+						ruleList = new RuleBuilder()
+							.allow().read().allResources().withAnyId().andThen()
+							//.allow().read().resourcesOfType("Medication").withAnyId().andThen()
+							//.allow().read().resourcesOfType(CommonHelper.RESOURCE_Provenance).withAnyId().andThen()
+							.build();
+					}
+					// Does parameter in URL contain _include, then allow all read
 				}
 			}
 
