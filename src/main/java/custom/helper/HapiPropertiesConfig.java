@@ -24,6 +24,10 @@ public class HapiPropertiesConfig {
 		}
 	}
 
+	public String getFHIRServerUrl() {
+		return properties.getProperty("server.fhirserverurl");
+	}
+
 	public String getSmart_enabled() {
 		return properties.getProperty("server.smart_enabled");
 	}

@@ -35,15 +35,15 @@
               },
               {
                 "url": "authorize",
-                "valueUri": "YOUROAUTHSERVER/oauth/authorization"
+                "valueUri": "YOUROAUTHSERVER/oauth/authorize"
               },
               {
                 "url": "revoke",
-                "valueUri": "YOUROAUTHSERVER/oauth/token/revoke-token"
+                "valueUri": "YOUROAUTHSERVER/oauth/revocation"
               },
               {
                 "url": "introspect",
-                "valueUri": "YOUROAUTHSERVER/oauth/token/introspect"
+                "valueUri": "YOUROAUTHSERVER/oauth/introspect"
               }
             ]
           }
