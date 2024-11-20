@@ -1,7 +1,8 @@
 package custom.helper;
 import java.util.Objects;
 public class Scope {
-	public static final String SCOPE_STRING_REGEX = "(user|patient|system)/" + "([a-zA-Z]+|\\*)" + "\\." + "(cruds|rs|read|write|\\*)";
+	public static final String SCOPE_STRING_REGEX = "(user|patient|system)/" + "([a-zA-Z]+|\\*)" + "\\." + "(cruds|rs|read|write|\\*)" + "(\\?.*)?";
+	// public static final String SCOPE_STRING_REGEX = "(user|patient|system)/" + "([a-zA-Z]+|\\*)" + "\\." + "(cruds|rs|read|write|\\*)";
 
 	private final ContextType contextType;
 	private final String resourceType;
@@ -26,7 +27,16 @@ public class Scope {
 			//this.resourceType = split2[0].charAt(0) == '*' ? String.RESOURCE : String.from(split2[0]);
 			this.resourceType = split2[0];
 
-			this.permission = Permission.from(split2[1]);
+			//
+			String operationTempPermission = split2[1];
+			try{
+				String[] split3 = split2[1].split("\\?");
+				operationTempPermission = split3[0];
+			} catch (Exception e) {
+			}
+			//
+
+			this.permission = Permission.from(operationTempPermission);
 		}
 	}
 
