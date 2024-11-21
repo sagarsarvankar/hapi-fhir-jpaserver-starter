@@ -123,6 +123,37 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 			boolean AllowWrite = false;
 			boolean AllowRead = false;
 
+			// below if is because, during pagination _getpages query parameter appears
+			// with no resource in the URL.
+			// Hence checking resourcetype is null and followed by getpages query parameter
+			if (resourceType == null
+				|| resourceType.isEmpty()
+				|| resourceType.isBlank()
+			) {
+				boolean bGetPagesPresent = false;
+				Map<String, String[]> urlParameters = requestDetails.getParameters();
+				for (Map.Entry<String, String[]> entry : urlParameters.entrySet()) {
+					String key = entry.getKey(); // Get the parameter name
+
+
+					if (key.equals(CommonHelper.URL_PARAMETER_GETPAGES)) {
+						bGetPagesPresent = true;
+						break;
+					}
+				}
+
+				if (bGetPagesPresent){
+					ruleList = new RuleBuilder()
+						.allow().read().allResources().withAnyId().andThen()
+						//.allow().read().resourcesOfType("Medication").withAnyId().andThen()
+						//.allow().read().resourcesOfType(CommonHelper.RESOURCE_Provenance).withAnyId().andThen()
+						.build();
+
+					return ruleList;
+				}
+			}
+			//
+
 			if (neededPermission == Scope.Permission.READ) {
 				AllowRead = PermissionChecker.AllowAccess(tokendets, neededPermission, resourceType);
 			}
@@ -130,16 +161,6 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 				AllowRead = PermissionChecker.AllowAccess(tokendets, Scope.Permission.READ, resourceType);
 				AllowWrite = PermissionChecker.AllowAccess(tokendets, neededPermission, resourceType);
 			}
-
-			/*
-			else if (neededPermission == Scope.Permission.WRITE) {
-				AllowRead = PermissionChecker.AllowAccess(tokendets, Scope.Permission.READ, resourceType);
-				AllowWrite = PermissionChecker.AllowAccess(tokendets, neededPermission, resourceType);
-			} else if (neededPermission == Scope.Permission.ALL) {
-				AllowRead = PermissionChecker.AllowAccess(tokendets, Scope.Permission.READ, resourceType);
-				AllowWrite = PermissionChecker.AllowAccess(tokendets, Scope.Permission.WRITE, resourceType);
-			}
-			*/
 
 			// This section is for $export and $export-poll-status, below checks if write or read operation
 			if ( operationType != null) {
@@ -168,19 +189,9 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 					}
 				}
 			}
+
 			// Below section is for regular resource fetching
 			else {
-				/*
-				if (AllowRead && AllowWrite) {
-					ruleList = new RuleBuilder()
-						.allow().read().resourcesOfType(resourceType).withAnyId().andThen()
-						.allow().read().resourcesOfType(CommonHelper.RESOURCE_Provenance).withAnyId().andThen()
-
-						.allow().write().resourcesOfType(resourceType).withAnyId().andThen()
-
-						.build();
-				}
-				*/
 				if (AllowWrite) {
 					ruleList = new RuleBuilder()
 						.allow().read().resourcesOfType(resourceType).withAnyId().andThen()
@@ -221,67 +232,6 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 
 			return ruleList;
 
-			/*
-			if (allowAccess){
-				RequestTypeEnum requestType = requestDetails.getRequestType();
-
-				switch (requestType)
-				{
-					case GET ->
-						ruleList = new RuleBuilder()
-							.allow().read().resourcesOfType(resourceType).withAnyId().andThen()
-							.build();
-					case POST ->
-						ruleList = new RuleBuilder()
-							.allow().write().resourcesOfType(resourceType).withAnyId().andThen()
-							.allow().read().resourcesOfType(resourceType).withAnyId().andThen()
-							.build();
-					case PUT ->
-						ruleList = new RuleBuilder()
-							.allow().write().resourcesOfType(resourceType).withAnyId().andThen()
-							.allow().read().resourcesOfType(resourceType).withAnyId().andThen()
-							.build();
-					case DELETE ->
-						ruleList = new RuleBuilder()
-							.allow().delete().resourcesOfType(resourceType).withAnyId().andThen()
-							.allow().read().resourcesOfType(resourceType).withAnyId().andThen()
-							.build();
-					default ->
-						ruleList = new RuleBuilder()
-							.allow().read().resourcesOfType(resourceType).withAnyId().andThen()
-							.build();
-				}
-			}
-			else{
-				ruleList = new RuleBuilder()
-				.denyAll("Deny all other requests")
-					.build();
-			}
-			*/
-
-			/*
-			return new RuleBuilder()
-
-				// 1. Allow all users to access the /metadata endpoint without restriction
-				//.allow().operation().named("/metadata").onServer().andAllowAllResponses().andThen()
-
-				// 2. Allow read access to Patient resources for all authenticated users
-				.allow().read().resourcesOfType("Patient").withAnyId().andThen()
-
-				// 3. Allow read access to Observation resources for all authenticated users
-				.allow().read().resourcesOfType("Observation").withAnyId().andThen()
-
-				// 4. Allow read access to Encounter resources for all authenticated users
-				.allow().read().resourcesOfType("Encounter").withAnyId().andThen()
-
-				// 5. Optional: Allow conditional write access to Observation and Patient resources for testing
-				.allow().write().resourcesOfType("Observation").withAnyId().andThen()
-				.allow().write().resourcesOfType("Patient").withAnyId().andThen()
-
-				// 6. Deny all other access (default deny-all policy for security)
-				.denyAll("Deny all other requests")
-				.build();
-			*/
 		}
 	}
 }
