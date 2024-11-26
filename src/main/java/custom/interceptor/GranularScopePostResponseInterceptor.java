@@ -158,61 +158,62 @@ public class GranularScopePostResponseInterceptor {
 					// "Resource" is used for "*" which applies to all resource types
 					if (sc.getResourceType().isEmpty()
 						|| sc.getResourceType().isBlank()
-						|| !sc.hasSubscope()
 					) {
 						//continue;
-					} else {
-						SubScope subScopeTemp = sc.getSubscope();
-						String resourceTypeString = SingleResource.fhirType();
+					}
+					else {
+						boolean isMatch = false;
 
-						if (sc.getResourceType().equals("*")
-							|| sc.getResourceType().equals(resourceTypeString)) {
+						if (!sc.hasSubscope())
+						{
+							isMatch = true;
+						}
+						else {
+							SubScope subScopeTemp = sc.getSubscope();
+							String resourceTypeString = SingleResource.fhirType();
 
-							boolean isMatch = false;
+							if (sc.getResourceType().equals("*")
+								|| sc.getResourceType().equals(resourceTypeString)) {
 
-							if (SingleResource instanceof org.hl7.fhir.r4.model.Condition) {
-								org.hl7.fhir.r4.model.Condition conditionResource = (org.hl7.fhir.r4.model.Condition) SingleResource;
+								if (SingleResource instanceof org.hl7.fhir.r4.model.Condition) {
+									org.hl7.fhir.r4.model.Condition conditionResource = (org.hl7.fhir.r4.model.Condition) SingleResource;
 
-								if (conditionResource.getCategory().size() > 0)
-								{
-									isMatch = conditionResource.getCategory().stream()
-										.anyMatch(category -> category.getCoding().stream()
-											.anyMatch(
-												coding -> subScopeTemp.getValue().toLowerCase().equals(coding.getCode().toLowerCase())
-											)
-										);
+									if (conditionResource.getCategory().size() > 0) {
+										isMatch = conditionResource.getCategory().stream()
+											.anyMatch(category -> category.getCoding().stream()
+												.anyMatch(
+													coding -> subScopeTemp.getValue().toLowerCase().equals(coding.getCode().toLowerCase())
+												)
+											);
+									} else {
+										isMatch = true;
+									}
+
+
+								} else if (SingleResource instanceof org.hl7.fhir.r4.model.Observation) {
+									// Example: Checking Observation with specific category
+									org.hl7.fhir.r4.model.Observation observation = (org.hl7.fhir.r4.model.Observation) SingleResource;
+
+									if (observation.getCategory().size() > 0) {
+										// Example: Enforce "category=problem-list-item" filter from scope
+										isMatch = observation.getCategory().stream()
+											.anyMatch(category -> category.getCoding().stream()
+												.anyMatch(
+													coding -> subScopeTemp.getValue().toLowerCase().equals(coding.getCode().toLowerCase())
+												)
+											);
+									} else {
+										isMatch = true;
+									}
 								}
-								else {
-									isMatch = true;
-								}
-
-
-							} else if (SingleResource instanceof org.hl7.fhir.r4.model.Observation)
-							{
-								// Example: Checking Observation with specific category
-								org.hl7.fhir.r4.model.Observation observation = (org.hl7.fhir.r4.model.Observation) SingleResource;
-
-								if (observation.getCategory().size() > 0)
-								{
-									// Example: Enforce "category=problem-list-item" filter from scope
-									isMatch = observation.getCategory().stream()
-										.anyMatch(category -> category.getCoding().stream()
-											.anyMatch(
-												coding -> subScopeTemp.getValue().toLowerCase().equals(coding.getCode().toLowerCase())
-											)
-										);
-								}
-								else {
-									isMatch = true;
-								}
-							}
-
-							if (isMatch) {
-								// filteredEntries.add(SingleEntry);
-								ValidEntry = isMatch;
-								break;
 							}
 						}
+
+						if (isMatch) {
+							ValidEntry = isMatch;
+							break;
+						}
+
 					}
 
 				}
