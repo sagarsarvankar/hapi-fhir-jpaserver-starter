@@ -2,23 +2,37 @@ package custom.helper;
 
 import ca.uhn.fhir.rest.api.RequestTypeEnum;
 import ca.uhn.fhir.rest.api.server.RequestDetails;
+import custom.object.SubScope;
 import custom.object.TokenDetails;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class PermissionChecker {
-	private static boolean checkSystemScopes(String resourceType, Scope.Permission requiredPermission,
-												 List<String> grantedscopes) {
+
+	public ArrayList<Scope> approvedScopesList;
+	public boolean m_allowAccess;
+
+	public PermissionChecker()
+	{
+		approvedScopesList = new ArrayList<Scope>();
+		m_allowAccess = false;
+	}
+
+	private boolean checkSystemScopes(String resourceType, Scope.Permission requiredPermission,
+												 List<String> grantedscopes, RequestDetails requestDetails) {
 		boolean bApproved = true;
 
-		if (!isApprovedByScopes(resourceType, requiredPermission, grantedscopes)) {
+		if (!isApprovedByScopes(resourceType, requiredPermission, grantedscopes, requestDetails)) {
 			bApproved = false;
 		}
 
 		return  bApproved;
 	}
 
-	private static boolean isApprovedByScopes(String resourceType, Scope.Permission requiredPermission, List<String> grantedScopes) {
+	private boolean isApprovedByScopes(String resourceType, Scope.Permission requiredPermission,
+												  List<String> grantedScopes,RequestDetails requestDetails) {
 		if (grantedScopes == null) {
 			return false;
 		}
@@ -35,12 +49,51 @@ public class PermissionChecker {
 					|| sc.getResourceType().equals(resourceType)) {
 					if (hasPermission(sc.getPermission(), requiredPermission)) {
 
-						return true;
+						boolean bAllowAccess = true;
+						//
+						/*
+						if (sc.hasSubscope())
+						{
+							SubScope subScTemp = sc.getSubscope();
+							Map<String, String[]> urlParameters = requestDetails.getParameters();
+							for (Map.Entry<String, String[]> entry : urlParameters.entrySet()) {
+								String key = entry.getKey(); // Get the parameter name
+								String value = entry.getValue()[0];
+
+
+								String queryparamvalue = value;
+								try {
+									String[] split3 = queryparamvalue.split("\\|");
+									value = split3[1];
+								}
+								catch (Exception e) {}
+
+								if (
+									key.equals(subScTemp.getName())
+										&& value.equals(subScTemp.getValue())
+								) {
+									bAllowAccess = true;
+									break;
+								}
+							}
+						}
+						//
+						else
+						{
+							bAllowAccess = true;
+						}
+						*/
+
+						if (bAllowAccess)
+						{
+							approvedScopesList.add(sc);
+							m_allowAccess = true;
+						}
 					}
 				}
 			}
 		}
-		return false;
+		return m_allowAccess;
 	}
 
 	/**
@@ -48,7 +101,7 @@ public class PermissionChecker {
 	 * @param requiredPermission
 	 * @return true if the grantedPermission includes the requiredPermission; otherwise false
 	 */
-	private static boolean hasPermission(Scope.Permission grantedPermission, Scope.Permission requiredPermission) {
+	private boolean hasPermission(Scope.Permission grantedPermission, Scope.Permission requiredPermission) {
 		boolean permittedValue = false;
 
 		if (grantedPermission == Scope.Permission.ALL) {
@@ -86,14 +139,15 @@ public class PermissionChecker {
 		}
 	}
 
-	public static boolean AllowAccess(TokenDetails tokenDetails, Scope.Permission neededPermission, String resourceType) {
+	public boolean AllowAccess(TokenDetails tokenDetails, Scope.Permission neededPermission,
+										String resourceType, RequestDetails requestDetails) {
 		boolean returnValue = false;
 
 		try {
 			//Scope.Permission neededPermission = Scope.Permission.READ;
 			//Set<String> resourceTypes;
 			List<String> ScopesFromToken = TokenHelper.getScopesListByScopeString(tokenDetails.scope);
-			returnValue = checkSystemScopes(resourceType, neededPermission, ScopesFromToken);
+			returnValue = checkSystemScopes(resourceType, neededPermission, ScopesFromToken, requestDetails);
 		}
 		catch (Exception e){
 

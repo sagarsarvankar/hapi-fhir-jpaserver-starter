@@ -12,9 +12,12 @@ import ca.uhn.fhir.jpa.subscription.match.config.SubscriptionProcessorConfig;
 import ca.uhn.fhir.jpa.subscription.match.config.WebsocketDispatcherConfig;
 import ca.uhn.fhir.jpa.subscription.submit.config.SubscriptionSubmitterConfig;
 import ca.uhn.fhir.rest.server.RestfulServer;
+import ca.uhn.fhir.rest.server.interceptor.consent.ConsentInterceptor;
+import ca.uhn.fhir.rest.server.interceptor.consent.RuleFilteringConsentService;
 import ca.uhn.fhir.wellknown.WellKnownServlet;
 import custom.helper.HapiPropertiesConfig;
 import custom.interceptor.AuthorizationInterceptorEx;
+import custom.interceptor.GranularScopePostResponseInterceptor;
 import custom.metadataex.CustomCapabilityStatementProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
@@ -85,7 +88,15 @@ public class Application extends SpringBootServletInitializer {
 
 		// Register AuthorizationInterceptorEx
 		if (EnableAuthorizationInterceptor()){
-			restfulServer.registerInterceptor(new AuthorizationInterceptorEx());
+			AuthorizationInterceptorEx authorizationInterceptor = new AuthorizationInterceptorEx();
+			restfulServer.registerInterceptor(authorizationInterceptor);
+
+			restfulServer.registerInterceptor(new GranularScopePostResponseInterceptor());
+			//
+			//ConsentInterceptor consentInterceptor = new ConsentInterceptor();
+			//consentInterceptor.registerConsentService(new RuleFilteringConsentService(authorizationInterceptor));
+			//restfulServer.registerInterceptor(consentInterceptor);
+			//
 		}
 		// Register AuthorizationInterceptorEx
 
@@ -94,6 +105,8 @@ public class Application extends SpringBootServletInitializer {
 		CustomCapabilityStatementProvider customCapabilityStatementProvider = new CustomCapabilityStatementProvider(restfulServer);
 		restfulServer.setServerConformanceProvider(customCapabilityStatementProvider);
 		// This will load custom capabilitystatement
+
+
 
 
 		return servletRegistrationBean;

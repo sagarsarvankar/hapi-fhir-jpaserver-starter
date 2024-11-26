@@ -1,4 +1,6 @@
 package custom.helper;
+import custom.object.SubScope;
+
 import java.util.Objects;
 public class Scope {
 	public static final String SCOPE_STRING_REGEX = "(user|patient|system)/" + "([a-zA-Z]+|\\*)" + "\\." + "(cruds|rs|read|write|\\*)" + "(\\?.*)?";
@@ -7,6 +9,41 @@ public class Scope {
 	private final ContextType contextType;
 	private final String resourceType;
 	private final Permission permission;
+	private final SubScope subScope;
+
+
+	private SubScope GetSubScopeIfPresent(String scopeString){
+		SubScope scTemp = null;
+		// Get sub scopes (granular level)
+		// eg: patient/Condition.rs?category=http://terminology.hl7.org/CodeSystem/condition-category|encounter-diagnosis
+		try
+		{
+
+
+			String[] splitBasedOnQuestionMark = scopeString.split("\\?");
+			String SubScopeName = "";
+			String SubScopeValue = "";
+			if (splitBasedOnQuestionMark[1] != null && splitBasedOnQuestionMark[1].length() > 0)
+			{
+				String[] splitBasedOnEqual = splitBasedOnQuestionMark[1].split("=");
+
+				if (splitBasedOnEqual[1] != null && splitBasedOnEqual[1].length() > 0){
+					SubScopeName = splitBasedOnEqual[0];
+
+					String[] splitBasedOnPipe = splitBasedOnEqual[1].split("\\|");
+					if (splitBasedOnPipe[1] != null && splitBasedOnPipe[1].length() > 0){
+						SubScopeValue = splitBasedOnPipe[1];
+
+						scTemp = new SubScope(SubScopeName, SubScopeValue);
+					}
+				}
+			}
+		} catch (Exception e) {
+
+		}
+
+		return scTemp;
+	}
 
 	/**
 	 * @param scopeString a string of the form {@code (user|patient|system)/:resourceType.(read|write|*)}
@@ -17,8 +54,11 @@ public class Scope {
 			contextType = null;
 			resourceType = "";
 			permission = null;
+			subScope = null;
 		} else {
 
+
+			subScope = GetSubScopeIfPresent(scopeString);
 
 			String[] split1 = scopeString.split("/");
 			this.contextType = ContextType.from(split1[0]);
@@ -45,10 +85,11 @@ public class Scope {
 	 * @param resourceType "Resource" for all resource types
 	 * @param permission
 	 */
-	public Scope(ContextType contextType, String resourceType, Permission permission) {
+	public Scope(ContextType contextType, String resourceType, Permission permission, SubScope subScope) {
 		this.contextType = contextType;
 		this.resourceType = resourceType;
 		this.permission = permission;
+		this.subScope = subScope;
 	}
 
 	/**
@@ -65,6 +106,17 @@ public class Scope {
 		return resourceType;
 	}
 
+	public SubScope getSubscope() {
+		return subScope;
+	}
+
+	public boolean hasSubscope() {
+		if (subScope != null) {
+			return true;
+		}
+		else
+			return false;
+	}
 	/**
 	 * @return the permission
 	 */

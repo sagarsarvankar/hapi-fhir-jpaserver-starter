@@ -2,38 +2,48 @@ package custom.interceptor;
 
 import ca.uhn.fhir.interceptor.api.Hook;
 import ca.uhn.fhir.interceptor.api.Pointcut;
+import ca.uhn.fhir.jpa.searchparam.matcher.AuthorizationSearchParamMatcher;
 import ca.uhn.fhir.rest.api.RequestTypeEnum;
 import ca.uhn.fhir.rest.api.server.RequestDetails;
 import ca.uhn.fhir.rest.server.exceptions.AuthenticationException;
+import ca.uhn.fhir.rest.server.exceptions.ForbiddenOperationException;
+import ca.uhn.fhir.rest.server.interceptor.auth.AdditionalCompartmentSearchParameters;
 import ca.uhn.fhir.rest.server.interceptor.auth.AuthorizationInterceptor;
 import ca.uhn.fhir.rest.server.interceptor.auth.IAuthRule;
 import ca.uhn.fhir.rest.server.interceptor.auth.RuleBuilder;
+import ca.uhn.fhir.rest.server.util.ISearchParamRegistry;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import custom.helper.CommonHelper;
 import custom.helper.PermissionChecker;
 import custom.helper.Scope;
 import custom.helper.TokenHelper;
+import custom.object.SubScope;
 import custom.object.TokenDetails;
+import jakarta.annotation.PostConstruct;
 import org.hl7.elm.r1.IsNull;
 import org.hl7.fhir.Observation;
+import org.hl7.fhir.instance.model.api.IBaseResource;
+import org.hl7.fhir.r4.model.Condition;
 import org.hl7.fhir.r4.model.Group;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import static custom.helper.CommonHelper.GetTokenDetailsFromTokenString;
+
 // import static custom.helper..GetNeededPermission;
 
 public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
-	private static final String AUTHORIZATION_HEADER = "Authorization";
 
-	private static final String CONFORMANCE_PATH_METADATA = "metadata";
-	private static final String CONFORMANCE_PATH_WELLKNOWN_OPENID = ".well-known/openid-configuration";
-	private static final String CONFORMANCE_PATH_WELLKNOWN_SMART = ".well-known/smart-configuration";
 
-	private static final String BEARER_TOKEN_PREFIX = "Bearer ";
 
+
+
+	/*
 	private TokenDetails GetTokenDetailsFromTokenString(String bearerToken) throws JsonProcessingException {
 		String DecodedToken = TokenHelper.DecodeToken(bearerToken);
 
@@ -42,26 +52,18 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 
 		return tokendets;
 	}
+	*/
 
 	@Hook(Pointcut.SERVER_INCOMING_REQUEST_PRE_HANDLED)
 	public void authorizeRequest(RequestDetails requestDetails) throws JsonProcessingException {
 
-		if (CONFORMANCE_PATH_METADATA.equals(requestDetails.getRequestPath()) ||
-			CONFORMANCE_PATH_WELLKNOWN_OPENID.equals(requestDetails.getRequestPath()) ||
-			CONFORMANCE_PATH_WELLKNOWN_SMART.equals(requestDetails.getRequestPath())) {
+		if (CommonHelper.CONFORMANCE_PATH_METADATA.equals(requestDetails.getRequestPath()) ||
+			CommonHelper.CONFORMANCE_PATH_WELLKNOWN_OPENID.equals(requestDetails.getRequestPath()) ||
+			CommonHelper.CONFORMANCE_PATH_WELLKNOWN_SMART.equals(requestDetails.getRequestPath())) {
 		}
 		else
 		{
-			String bearerToken = requestDetails.getHeader(AUTHORIZATION_HEADER);
-
-			if (bearerToken == null || bearerToken.isEmpty()) {
-				// Throw an HTTP 401
-				// throw new AuthenticationException(Msg.code(644) + "Missing or invalid Authorization header value");
-				throw new AuthenticationException("Authorization token is missing");
-			}
-
-			bearerToken = bearerToken.replaceFirst(BEARER_TOKEN_PREFIX, "");
-			TokenDetails tokendets = GetTokenDetailsFromTokenString(bearerToken);
+			TokenDetails tokendets = GetTokenDetailsFromTokenString(requestDetails);
 
 			// Validate the token using your custom method
 			if (validateToken(tokendets)) {
@@ -84,9 +86,9 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 		// Define authorization rules based on validated token or other criteria
 		// For example, you might want to allow certain operations based on the user's token
 
-		if (CONFORMANCE_PATH_METADATA.equals(requestDetails.getRequestPath()) ||
-			CONFORMANCE_PATH_WELLKNOWN_OPENID.equals(requestDetails.getRequestPath()) ||
-			CONFORMANCE_PATH_WELLKNOWN_SMART.equals(requestDetails.getRequestPath())) {
+		if (CommonHelper.CONFORMANCE_PATH_METADATA.equals(requestDetails.getRequestPath()) ||
+			CommonHelper.CONFORMANCE_PATH_WELLKNOWN_OPENID.equals(requestDetails.getRequestPath()) ||
+			CommonHelper.CONFORMANCE_PATH_WELLKNOWN_SMART.equals(requestDetails.getRequestPath())) {
 
 			return new RuleBuilder()
 
@@ -96,17 +98,13 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 		}
 
 		else {
-
-			String bearerToken = requestDetails.getHeader(AUTHORIZATION_HEADER);
-			bearerToken = bearerToken.replaceFirst(BEARER_TOKEN_PREFIX, "");
-
 			TokenDetails tokendets = new TokenDetails();
 			try {
-				tokendets = GetTokenDetailsFromTokenString(bearerToken);
+				tokendets = GetTokenDetailsFromTokenString(requestDetails);
 			} catch (Exception e) {
 			}
 
-			// boolean allowAccess = false;
+			// boolean m_allowAccess = false;
 
 			//
 			Scope.Permission neededPermission = PermissionChecker.GetNeededPermission(requestDetails);
@@ -154,12 +152,14 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 			}
 			//
 
+			PermissionChecker permissionCheckerObj = new PermissionChecker();
+
 			if (neededPermission == Scope.Permission.READ) {
-				AllowRead = PermissionChecker.AllowAccess(tokendets, neededPermission, resourceType);
+				AllowRead = permissionCheckerObj.AllowAccess(tokendets, neededPermission, resourceType, requestDetails);
 			}
 			else {
-				AllowRead = PermissionChecker.AllowAccess(tokendets, Scope.Permission.READ, resourceType);
-				AllowWrite = PermissionChecker.AllowAccess(tokendets, neededPermission, resourceType);
+				AllowRead = permissionCheckerObj.AllowAccess(tokendets, Scope.Permission.READ, resourceType, requestDetails);
+				AllowWrite = permissionCheckerObj.AllowAccess(tokendets, neededPermission, resourceType, requestDetails);
 			}
 
 			// This section is for $export and $export-poll-status, below checks if write or read operation
@@ -206,8 +206,11 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 						.allow().read().resourcesOfType(CommonHelper.RESOURCE_Provenance).withAnyId().andThen()
 						.build();
 
-					boolean bIncludePresent = false;
+					//ruleList = ConstructRuleBuilderWithGranularScopes(permissionCheckerObj);
+
 					// Does parameter in URL contain _include, then allow all read
+					boolean bIncludePresent = false;
+
 					Map<String, String[]> urlParameters = requestDetails.getParameters();
 					for (Map.Entry<String, String[]> entry : urlParameters.entrySet()) {
 						String key = entry.getKey(); // Get the parameter name
@@ -233,5 +236,64 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 			return ruleList;
 
 		}
+	}
+
+	private List<IAuthRule> ConstructRuleBuilderWithGranularScopes(PermissionChecker permissionCheckerObj) {
+		List<IAuthRule> ruleList = new ArrayList<>();
+
+		ruleList.add(new RuleBuilder()
+			.allow().read().resourcesOfType(CommonHelper.RESOURCE_Provenance).withAnyId()
+			.build()
+			.get(0)
+		);
+
+		try
+		{
+			for (int i = 0; i < permissionCheckerObj.approvedScopesList.size(); i++) {
+				Scope scopeTemp = permissionCheckerObj.approvedScopesList.get(i);
+
+				boolean bSubScopeExists = false;
+				String subScopeFilter = "";
+				String resourceType = scopeTemp.getResourceType();
+
+				try {
+					SubScope subScopeTemp = scopeTemp.getSubscope();
+					subScopeFilter = subScopeTemp.getName() + "=" + subScopeTemp.getValue();
+					// subScopeFilter = "category=http://terminology.hl7.org/CodeSystem/condition-category|problem-list-item";
+
+					bSubScopeExists = true;
+				} catch (Exception e) {}
+
+				//bSubScopeExists = false;
+
+				if (bSubScopeExists)
+				{
+
+					ruleList.add(
+						new RuleBuilder()
+							.allow()
+							.read()
+							.resourcesOfType(Condition.class)
+							.withFilter(subScopeFilter)
+							//.withFilter("category=problem-list-item")
+							.build()
+							.get(0) // Add the first (and only) rule created by RuleBuilder
+					);
+				}
+				else {
+					ruleList.add(new RuleBuilder()
+						.allow().read().resourcesOfType(resourceType).withAnyId().andThen()
+						.build()
+						.get(0)
+					);
+				}
+			}
+		}
+		catch (Exception e)
+		{
+
+		}
+
+		return ruleList;
 	}
 }
