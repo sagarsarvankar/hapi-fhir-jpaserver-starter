@@ -218,6 +218,10 @@ public class GranularScopePostResponseInterceptor {
 
 				}
 			}
+			else
+			{
+				ValidEntry = true;
+			}
 		}
 		catch (Exception e)
 		{
