@@ -42,6 +42,7 @@ spring:
   datasource:
     #url: 'jdbc:h2:file:./target/database/h2'
     url: 'jdbc:postgresql://localhost:5432/fhirdb_hapi_baseline'
+    #url: 'jdbc:postgresql://localhost:5432/fhirdb_hapi_tenant1'
     username: postgres
     password: postgres
     driverClassName: org.postgresql.Driver
@@ -205,7 +206,7 @@ hapi:
     #    etag_support_enabled: true
     #    expunge_enabled: true
     #    client_id_strategy: ALPHANUMERIC
-    #    server_id_strategy: SEQUENTIAL_NUMERIC
+    server_id_strategy: UUID #SEQUENTIAL_NUMERIC
     #    fhirpath_interceptor_enabled: false
     #    filter_search_enabled: true
     #    graphql_enabled: true

@@ -1,0 +1,22 @@
+{
+  "tenants": [
+    {
+      "name": "default",
+      "url": "jdbc:postgresql://localhost:5432/fhirdb_hapi_baseline",
+      "username": "postgres",
+      "password": "postgres",
+      "driverClassName": "org.postgresql.Driver",
+      "max_active": "15",
+      "defaulttenant": "true"
+    },
+    {
+      "name": "tenant1",
+      "url": "jdbc:postgresql://localhost:5432/fhirdb_hapi_tenant1",
+      "username": "postgres",
+      "password": "postgres",
+      "driverClassName": "org.postgresql.Driver",
+      "max_active": "15",
+      "defaulttenant": "false"
+    }
+  ]
+}
