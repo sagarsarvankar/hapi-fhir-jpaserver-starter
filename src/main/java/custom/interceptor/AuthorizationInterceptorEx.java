@@ -149,6 +149,20 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 
 					return ruleList;
 				}
+				else {
+					RequestTypeEnum requestTypeEnum = requestDetails.getRequestType();
+
+					// Below handling is done when POSTing
+					// bundle data to FHIR server
+					if (requestTypeEnum == RequestTypeEnum.POST){
+						ruleList = new RuleBuilder()
+							.allowAll("Allow all requests without restriction")
+							.build();
+
+						return ruleList;
+					}
+
+				}
 			}
 			//
 
