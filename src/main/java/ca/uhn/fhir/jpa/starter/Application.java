@@ -12,12 +12,10 @@ import ca.uhn.fhir.jpa.subscription.match.config.SubscriptionProcessorConfig;
 import ca.uhn.fhir.jpa.subscription.match.config.WebsocketDispatcherConfig;
 import ca.uhn.fhir.jpa.subscription.submit.config.SubscriptionSubmitterConfig;
 import ca.uhn.fhir.rest.server.RestfulServer;
-import ca.uhn.fhir.rest.server.interceptor.consent.ConsentInterceptor;
-import ca.uhn.fhir.rest.server.interceptor.consent.RuleFilteringConsentService;
 import ca.uhn.fhir.wellknown.WellKnownServlet;
+import custom.helper.CommonHelper;
 import custom.helper.HapiPropertiesConfig;
-import custom.interceptor.AuthorizationInterceptorEx;
-import custom.interceptor.GranularScopePostResponseInterceptor;
+import custom.interceptor.*;
 import custom.metadataex.CustomCapabilityStatementProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
@@ -37,7 +35,8 @@ import java.io.IOException;
 
 @ServletComponentScan(basePackageClasses = {RestfulServer.class})
 @SpringBootApplication(exclude = {ElasticsearchRestClientAutoConfiguration.class, ThymeleafAutoConfiguration.class})
-// @ComponentScan(basePackages = {"ca.uhn.fhir.jpa.starter", "custom.helper", "custom"})
+@ComponentScan(basePackages = {"ca.uhn.fhir.wellknown","ca.uhn.fhir.jpa.starter", "custom", "custom.multitenancy", "custom.helper"})
+// "custom.helper", "custom", "custom.multitenancy"
 @Import({
 	StarterCrR4Config.class,
 	StarterCrDstu3Config.class,
@@ -50,6 +49,8 @@ import java.io.IOException;
 	JpaBatch2Config.class,
 	Batch2JobsConfig.class
 })
+
+
 public class Application extends SpringBootServletInitializer {
 
 	// public static String CAPABILITY_STATEMENT_FILE_NAME = "capabilitystatement.json";
@@ -85,6 +86,7 @@ public class Application extends SpringBootServletInitializer {
 
 		//restfulServer.registerProvider(new BulkExportProvider());
 
+		//CommonHelper.GetMoreConfigFromConfig();
 
 		// Register AuthorizationInterceptorEx
 		if (EnableAuthorizationInterceptor()){
@@ -106,8 +108,10 @@ public class Application extends SpringBootServletInitializer {
 		restfulServer.setServerConformanceProvider(customCapabilityStatementProvider);
 		// This will load custom capabilitystatement
 
-
-
+		// Multitenancy
+		restfulServer.registerInterceptor(new TenantIdentificationInterceptor());
+		restfulServer.registerInterceptor(new TenantContextCleanupInterceptor());
+		// Multitenancy
 
 		return servletRegistrationBean;
 	}
