@@ -46,6 +46,16 @@ public class CommonHelper {
 	public static final String TENANT_HEADER_NAME = "X-FHIR-TENANT-ID";
 	public static final String TENANT_NAME_DEFAULT = "default";
 
+	public static String GetTenantNameBasedOnHeader(String tenantname){
+		// String tenantId = requestDetails.getHeader(CommonHelper.TENANT_HEADER_NAME);
+		if (tenantname == null || tenantname.isEmpty()) {
+			// throw new IllegalArgumentException("Tenant ID is missing");
+			tenantname = CommonHelper.TENANT_NAME_DEFAULT;
+		}
+
+		return tenantname;
+	}
+
 	public static MoreConfig  GetMoreConfigFromConfig() {
 		MoreConfig moreConfig = new MoreConfig();
 

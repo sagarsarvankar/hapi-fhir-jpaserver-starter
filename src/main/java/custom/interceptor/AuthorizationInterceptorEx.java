@@ -1,33 +1,24 @@
 package custom.interceptor;
 
+import ca.uhn.fhir.batch2.model.JobInstance;
 import ca.uhn.fhir.interceptor.api.Hook;
 import ca.uhn.fhir.interceptor.api.Pointcut;
-import ca.uhn.fhir.jpa.searchparam.matcher.AuthorizationSearchParamMatcher;
 import ca.uhn.fhir.rest.api.RequestTypeEnum;
 import ca.uhn.fhir.rest.api.server.RequestDetails;
 import ca.uhn.fhir.rest.server.exceptions.AuthenticationException;
-import ca.uhn.fhir.rest.server.exceptions.ForbiddenOperationException;
-import ca.uhn.fhir.rest.server.interceptor.auth.AdditionalCompartmentSearchParameters;
+import ca.uhn.fhir.rest.server.exceptions.ResourceNotFoundException;
 import ca.uhn.fhir.rest.server.interceptor.auth.AuthorizationInterceptor;
 import ca.uhn.fhir.rest.server.interceptor.auth.IAuthRule;
 import ca.uhn.fhir.rest.server.interceptor.auth.RuleBuilder;
-import ca.uhn.fhir.rest.server.util.ISearchParamRegistry;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import custom.helper.CommonHelper;
-import custom.helper.PermissionChecker;
-import custom.helper.Scope;
-import custom.helper.TokenHelper;
+import custom.dbaccess.DatabaseHelper;
+import custom.helper.*;
 import custom.object.SubScope;
 import custom.object.TokenDetails;
-import jakarta.annotation.PostConstruct;
-import org.hl7.elm.r1.IsNull;
-import org.hl7.fhir.Observation;
-import org.hl7.fhir.instance.model.api.IBaseResource;
+import javassist.NotFoundException;
 import org.hl7.fhir.r4.model.Condition;
-import org.hl7.fhir.r4.model.Group;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,10 +28,8 @@ import static custom.helper.CommonHelper.GetTokenDetailsFromTokenString;
 
 // import static custom.helper..GetNeededPermission;
 
+
 public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
-
-
-
 
 
 	/*
@@ -53,6 +42,8 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 		return tokendets;
 	}
 	*/
+
+
 
 	@Hook(Pointcut.SERVER_INCOMING_REQUEST_PRE_HANDLED)
 	public void authorizeRequest(RequestDetails requestDetails) throws JsonProcessingException {
@@ -74,6 +65,131 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 		}
 		// Check if the token is missing
 
+
+		// Since there is no support of _outputFormat other than
+		// application/fhir+ndjson, hence changing the request parameter
+		// to application/fhir+ndjson if the format is any other
+		/*
+		if (Enablesupport_default_to_application_fhir_ndjson_bulk_export())
+		{
+			TakeActionIfOutputFormatForBulkExportOtherThanfhirndjson(requestDetails);
+		}
+		*/
+		//
+		//
+
+
+		// Here it will check if it is checking for $export-poll-status.
+		// If the job is set for cancelled, it will return 401,
+		// else the default behaviour will go ahead.
+		if (Enablesupport_for_404_on_get_of_cancelled_job())
+		{
+			TakeActionIfBulkJobCancelled(requestDetails);
+		}
+		//
+		//
+	}
+
+	private static boolean Enablesupport_default_to_application_fhir_ndjson_bulk_export() {
+		boolean returnValue = false;
+
+		try
+		{
+			HapiPropertiesConfig hapiConfig = new HapiPropertiesConfig();
+			String getSecurityValue = hapiConfig.getdefault_to_application_fhir_ndjson_bulk_export();
+
+			if (getSecurityValue.toLowerCase().equals("true")){
+				returnValue = true;
+			}
+		}
+		catch (Exception e){
+		}
+
+		return returnValue;
+	}
+
+	private static void TakeActionIfOutputFormatForBulkExportOtherThanfhirndjson(RequestDetails requestDetails){
+		try{
+			String operationType = requestDetails.getOperation();
+
+			if (operationType != null &&
+				operationType.toLowerCase().equals(CommonHelper.OPERATION_TYPE_EXPORT))
+			{
+				try
+				{
+					String outputFormat = requestDetails.getParameters().get("_outputFormat")[0];
+					if (outputFormat == null || !outputFormat.toLowerCase().equals("application/fhir+ndjson")) {
+						// Set the default outputFormat
+						requestDetails.addParameter("_outputFormat", new String[] { "application/fhir+ndjson" });
+					}
+				} catch (Exception e) {
+				}
+			}
+		}
+		catch (Exception e){
+
+		}
+	}
+
+
+	private static boolean Enablesupport_for_404_on_get_of_cancelled_job() {
+		boolean returnValue = false;
+
+		try
+		{
+			HapiPropertiesConfig hapiConfig = new HapiPropertiesConfig();
+			String getSecurityValue = hapiConfig.getsupport_for_404_on_get_of_cancelled_job();
+
+			if (getSecurityValue.toLowerCase().equals("true")){
+				returnValue = true;
+			}
+		}
+		catch (Exception e){
+		}
+
+		return returnValue;
+	}
+
+	private boolean IsJobCancelled(String jobid, String tenantname){
+		boolean jobCancelled = false;
+
+		try{
+			JobInstance jobInstance = DatabaseHelper.GetJobInstanceByJobId(jobid, tenantname);
+
+			if (jobInstance.isCancelled()){
+				jobCancelled = true;
+			}
+		}
+		catch(Exception e){}
+
+		return jobCancelled;
+	}
+
+	private void TakeActionIfBulkJobCancelled(RequestDetails requestDetails) {
+
+		String operationType = requestDetails.getOperation();
+
+		if (operationType != null) {
+			RequestTypeEnum requestTypeEnum = requestDetails.getRequestType();
+
+			if (requestTypeEnum == RequestTypeEnum.GET &&
+				operationType.toLowerCase().equals(CommonHelper.OPERATION_TYPE_EXPORT_POLL_STATUS)) {
+				String jobId = "";
+				String tenantname = "";
+
+				try {
+					jobId = requestDetails.getParameters().get("_jobId")[0];
+
+					tenantname = requestDetails.getHeader(CommonHelper.TENANT_HEADER_NAME);
+					tenantname = CommonHelper.GetTenantNameBasedOnHeader(tenantname);
+				} catch (Exception e) {
+				}
+
+				if (IsJobCancelled(jobId, tenantname)) {
+					throw new ResourceNotFoundException("Job with ID " + jobId + " has been canceled");
+				}
+			}
+		}
 	}
 
 	private boolean validateToken(TokenDetails tokendets) throws JsonProcessingException {
@@ -182,6 +298,23 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 
 					if (operationType.toLowerCase().equals(CommonHelper.OPERATION_TYPE_EXPORT))
 					{
+						// Since there is no support of _outputFormat other than
+						// application/fhir+ndjson, hence changing the request parameter
+						// to application/fhir+ndjson if the format is any other
+						/*
+						try
+						{
+							String outputFormat = requestDetails.getParameters().get("_outputFormat")[0];
+							if (outputFormat == null || !outputFormat.equals("application/fhir+ndjson")) {
+								// Set the default outputFormat
+								requestDetails.addParameter("_outputFormat", new String[] { "application/fhir+ndjson" });
+							}
+						} catch (Exception e) {
+						}
+						*/
+						//
+						//
+
 						ruleList = new RuleBuilder()
 							.allow().operation().named(CommonHelper.OPERATION_TYPE_EXPORT)
 							.atAnyLevel().andAllowAllResponsesWithAllResourcesAccess()

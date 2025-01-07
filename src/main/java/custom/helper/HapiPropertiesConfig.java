@@ -23,6 +23,13 @@ public class HapiPropertiesConfig {
 			ex.printStackTrace();
 		}
 	}
+	public String getdefault_to_application_fhir_ndjson_bulk_export() {
+		return properties.getProperty("server.default_to_application_fhir_ndjson_bulk_export");
+	}
+
+	public String getsupport_for_404_on_get_of_cancelled_job() {
+		return properties.getProperty("server.support_for_404_on_get_of_cancelled_job");
+	}
 
 	public String getFHIRServerUrl() {
 		return properties.getProperty("server.fhirserverurl");

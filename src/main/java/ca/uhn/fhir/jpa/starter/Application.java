@@ -102,6 +102,10 @@ public class Application extends SpringBootServletInitializer {
 		}
 		// Register AuthorizationInterceptorEx
 
+		//To preprocess request
+		IncomingRequestPreProcessInterceptor incomingRequestPreProcessInterceptor = new IncomingRequestPreProcessInterceptor();
+		restfulServer.registerInterceptor(incomingRequestPreProcessInterceptor);
+		//To preprocess request
 
 		// This will load custom capabilitystatement
 		CustomCapabilityStatementProvider customCapabilityStatementProvider = new CustomCapabilityStatementProvider(restfulServer);
