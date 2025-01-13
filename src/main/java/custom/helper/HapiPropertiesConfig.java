@@ -23,6 +23,19 @@ public class HapiPropertiesConfig {
 			ex.printStackTrace();
 		}
 	}
+
+	public String getclientid_for_introspection_endpoint() {
+		return properties.getProperty("server.oauth.clientid_for_introspection_endpoint");
+	}
+
+	public String getclientsecret_for_introspection_endpoint() {
+		return properties.getProperty("server.oauth.clientsecret_for_introspection_endpoint");
+	}
+
+	public String getcheck_token_revoked_using_introspection() {
+		return properties.getProperty("server.oauth.check_token_revoked_using_introspection");
+	}
+
 	public String getdefault_to_application_fhir_ndjson_bulk_export() {
 		return properties.getProperty("server.default_to_application_fhir_ndjson_bulk_export");
 	}

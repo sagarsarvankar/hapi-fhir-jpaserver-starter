@@ -56,6 +56,12 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 		{
 			TokenDetails tokendets = GetTokenDetailsFromTokenString(requestDetails);
 
+			// Check if token is revoked
+			if (CommonHelper.AllowCheckingOfRevokedTokenDuringAuthorization() &&
+				!TokenHelper.IsTokenActiveAfterIntrospection(tokendets.access_token)) {
+				throw new AuthenticationException("Authorization token is revoked");
+			}
+
 			// Validate the token using your custom method
 			if (validateToken(tokendets)) {
 				// Throw an HTTP 401

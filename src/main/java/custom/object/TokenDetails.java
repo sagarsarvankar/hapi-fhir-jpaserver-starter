@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class TokenDetails {
+	public String access_token;
 	public String nbf;
 	public String exp;
 	public String iss;

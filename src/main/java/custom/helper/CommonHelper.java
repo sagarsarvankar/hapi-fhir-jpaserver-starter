@@ -46,6 +46,23 @@ public class CommonHelper {
 	public static final String TENANT_HEADER_NAME = "X-FHIR-TENANT-ID";
 	public static final String TENANT_NAME_DEFAULT = "default";
 
+	public static boolean AllowCheckingOfRevokedTokenDuringAuthorization(){
+		boolean returnvalue = false;
+
+		try{
+			HapiPropertiesConfig hapiPropertiesConfig = new HapiPropertiesConfig();
+			String check_token_revoked_using_introspection = hapiPropertiesConfig.getcheck_token_revoked_using_introspection();
+
+			if (check_token_revoked_using_introspection != null
+			&& check_token_revoked_using_introspection.toLowerCase().equals("true")){
+				returnvalue = true;
+			}
+		} catch (Exception e) {
+		}
+
+		return returnvalue;
+	}
+
 	public static String GetTenantNameBasedOnHeader(String tenantname){
 		// String tenantId = requestDetails.getHeader(CommonHelper.TENANT_HEADER_NAME);
 		if (tenantname == null || tenantname.isEmpty()) {
@@ -91,6 +108,7 @@ public class CommonHelper {
 
 		ObjectMapper objectMapper = new ObjectMapper();
 		TokenDetails tokendets = objectMapper.readValue(DecodedToken, TokenDetails.class);
+		tokendets.access_token = bearerToken;
 
 		return tokendets;
 	}
