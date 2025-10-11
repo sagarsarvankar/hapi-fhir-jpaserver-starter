@@ -9,8 +9,8 @@
     "http://hl7.org/fhir/uv/bulkdata/CapabilityStatement/bulk-data"
   ],
   "implementation": {
-    "description": "Inferno Reference Server for US Core, Bulk Data, and SMART App Launch Implementation Guides based on HAPI FHIR R4 Server",
-    "url": "YOUROAUTHSERVER"
+    "description": "FHIR Server for US Core, Bulk Data, and SMART App Launch Implementation Guides based on HAPI FHIR R4 Server",
+    "url": "https://localhost:5001"
   },
   "fhirVersion": "4.0.1",
   "format": [
@@ -31,19 +31,19 @@
             "extension": [
               {
                 "url": "token",
-                "valueUri": "YOUROAUTHSERVER/oauth/token"
+                "valueUri": "https://localhost:5001/oauth/token"
               },
               {
                 "url": "authorize",
-                "valueUri": "YOUROAUTHSERVER/oauth/authorize"
+                "valueUri": "https://localhost:5001/oauth/authorize"
               },
               {
                 "url": "revoke",
-                "valueUri": "YOUROAUTHSERVER/oauth/revocation"
+                "valueUri": "https://localhost:5001/oauth/revocation"
               },
               {
                 "url": "introspect",
-                "valueUri": "YOUROAUTHSERVER/oauth/introspect"
+                "valueUri": "https://localhost:5001/oauth/introspect"
               }
             ]
           }
@@ -534,6 +534,10 @@
             }
           ],
           "searchParam": [
+            {
+              "name": "patient",
+              "type": "reference"
+            },
             {
               "name": "name",
               "type": "string"
@@ -1073,7 +1077,7 @@
       "operation": [
         {
           "name": "get-resource-counts",
-          "definition": "YOUROAUTHSERVER/OperationDefinition/-s-get-resource-counts"
+          "definition": "https://localhost:5001/OperationDefinition/-s-get-resource-counts"
         },
         {
           "name": "export",

@@ -50,7 +50,12 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 
 		if (CommonHelper.CONFORMANCE_PATH_METADATA.equals(requestDetails.getRequestPath()) ||
 			CommonHelper.CONFORMANCE_PATH_WELLKNOWN_OPENID.equals(requestDetails.getRequestPath()) ||
-			CommonHelper.CONFORMANCE_PATH_WELLKNOWN_SMART.equals(requestDetails.getRequestPath())) {
+			CommonHelper.CONFORMANCE_PATH_WELLKNOWN_SMART.equals(requestDetails.getRequestPath()))
+		{
+			if (CommonHelper.CONFORMANCE_PATH_METADATA.equals(requestDetails.getRequestPath()))
+			{
+				requestDetails.addParameter("_format", new String[]{"json"});
+			}
 		}
 		else
 		{
