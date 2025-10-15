@@ -36,6 +36,9 @@ public class HapiPropertiesConfig {
 		return properties.getProperty("server.oauth.check_token_revoked_using_introspection");
 	}
 
+	public String getcheck_token_generated_for_this_tenant() {
+		return properties.getProperty("server.oauth.check_token_generated_for_this_tenant");
+	}
 	public String getdefault_to_application_fhir_ndjson_bulk_export() {
 		return properties.getProperty("server.default_to_application_fhir_ndjson_bulk_export");
 	}

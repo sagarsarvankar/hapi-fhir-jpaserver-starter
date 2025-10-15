@@ -26,4 +26,5 @@ public class TokenDetails {
 	public String scope;
 	public String[] group;
 	public String[] amr;
+	public String fhirtenant;
 }

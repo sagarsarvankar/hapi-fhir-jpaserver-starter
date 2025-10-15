@@ -46,6 +46,23 @@ public class CommonHelper {
 	public static final String TENANT_HEADER_NAME = "X-FHIR-TENANT-ID";
 	public static final String TENANT_NAME_DEFAULT = "default";
 
+	public static boolean AllowCheck_token_generated_for_this_tenant(){
+		boolean returnvalue = false;
+
+		try{
+			HapiPropertiesConfig hapiPropertiesConfig = new HapiPropertiesConfig();
+			String check_token_generated_for_this_tenant = hapiPropertiesConfig.getcheck_token_generated_for_this_tenant();
+
+			if (check_token_generated_for_this_tenant != null
+				&& check_token_generated_for_this_tenant.toLowerCase().equals("true")){
+				returnvalue = true;
+			}
+		} catch (Exception e) {
+		}
+
+		return returnvalue;
+	}
+
 	public static boolean AllowCheckingOfRevokedTokenDuringAuthorization(){
 		boolean returnvalue = false;
 

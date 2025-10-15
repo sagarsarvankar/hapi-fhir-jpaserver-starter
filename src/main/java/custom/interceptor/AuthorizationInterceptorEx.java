@@ -13,7 +13,9 @@ import ca.uhn.fhir.rest.server.interceptor.auth.RuleBuilder;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import custom.dbaccess.DatabaseHelper;
 import custom.helper.*;
+import custom.object.MoreConfig;
 import custom.object.SubScope;
+import custom.object.TenantDetails;
 import custom.object.TokenDetails;
 import javassist.NotFoundException;
 import org.hl7.fhir.r4.model.Condition;
@@ -57,8 +59,7 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 				requestDetails.addParameter("_format", new String[]{"json"});
 			}
 		}
-		else
-		{
+		else {
 			TokenDetails tokendets = GetTokenDetailsFromTokenString(requestDetails);
 
 			// Check if token is revoked
@@ -73,6 +74,29 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 				//throw new AuthenticationException(Msg.code(644) + "Missing or invalid Authorization header value");
 				throw new AuthenticationException("Authorization token is invalid");
 			}
+
+			// checking for valid tenantid
+			String xfhirtenantid = "";
+			try {
+				xfhirtenantid = requestDetails.getHeader("X-FHIR-TENANT-ID");
+			} catch (Exception e) {
+			}
+			if (xfhirtenantid != null && !xfhirtenantid.isEmpty()) {
+				if (!IsTenantValid(xfhirtenantid)) {
+					throw new AuthenticationException("Invalid tenant id sent in header X-FHIR-TENANT-ID");
+				}
+			}
+			//
+
+			//Checking if token is generated for this tenant
+			if (CommonHelper.AllowCheck_token_generated_for_this_tenant()
+				&& !IsTokenGeneratedForThisTenant(xfhirtenantid, tokendets)
+			) {
+				throw new AuthenticationException("Token is not valid for this tenant. ");
+			}
+
+			//
+
 		}
 		// Check if the token is missing
 
@@ -99,6 +123,53 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 		}
 		//
 		//
+	}
+
+	private static boolean IsTokenGeneratedForThisTenant(String inputTenantId,
+																		  TokenDetails tokendets) {
+		boolean returnValue = false;
+
+		try {
+			String tenantidFromToken = tokendets.fhirtenant;
+
+			if (inputTenantId == null || inputTenantId.isEmpty())
+			{
+				inputTenantId = "default";
+			}
+			if (tenantidFromToken == null || tenantidFromToken.isEmpty())
+			{
+				tenantidFromToken = "default";
+			}
+
+			if (inputTenantId.toLowerCase().equals(tenantidFromToken.toLowerCase())) {
+				returnValue = true;
+			}
+		} catch (Exception e) {
+			returnValue = true;
+		}
+
+		return returnValue;
+	}
+
+	private static boolean IsTenantValid(String inputTenantId) {
+		boolean returnValue = false;
+
+		try {
+			if (inputTenantId != null && !inputTenantId.isEmpty()) {
+				MoreConfig moreConfig = CommonHelper.GetMoreConfigFromConfig();
+
+				for (TenantDetails singleTenant : moreConfig.tenants) {
+					if (singleTenant.name.toLowerCase().equals(inputTenantId.toLowerCase())) {
+						returnValue = true;
+						break;
+					}
+				}
+			}
+		} catch (Exception e) {
+			returnValue = true;
+		}
+
+		return returnValue;
 	}
 
 	private static boolean Enablesupport_default_to_application_fhir_ndjson_bulk_export() {
