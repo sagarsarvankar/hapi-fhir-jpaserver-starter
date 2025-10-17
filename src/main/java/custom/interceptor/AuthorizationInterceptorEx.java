@@ -425,9 +425,8 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 					ruleList = new RuleBuilder()
 						.allow().read().resourcesOfType(resourceType).withAnyId().andThen()
 						.allow().read().resourcesOfType(CommonHelper.RESOURCE_Provenance).withAnyId().andThen()
-
 						.allow().write().resourcesOfType(resourceType).withAnyId().andThen()
-
+						.allow().delete().resourcesOfType(resourceType).withAnyId().andThen()
 						.build();
 				} else if (AllowRead) {
 					ruleList = new RuleBuilder()
