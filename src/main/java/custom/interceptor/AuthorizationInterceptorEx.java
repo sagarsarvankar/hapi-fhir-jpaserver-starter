@@ -95,6 +95,12 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 				throw new AuthenticationException("Token is not valid for this tenant. ");
 			}
 
+			//Checking if token is generated for this fhir server
+			if (CommonHelper.AllowCheck_token_generated_for_this_fhir_server()
+				&& !IsTokenGeneratedForThisFHIRServer(requestDetails, tokendets)
+			) {
+				throw new AuthenticationException("Token is not valid for this FHIR server. ");
+			}
 			//
 
 		}
@@ -123,6 +129,25 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 		}
 		//
 		//
+	}
+
+	private static boolean IsTokenGeneratedForThisFHIRServer(RequestDetails requestDetails,
+																		  TokenDetails tokendets) {
+		boolean returnValue = false;
+
+		try {
+			//This will contain the FHIR URL present in the token
+			String audFromToken = tokendets.aud[0].toString();
+			String fhirbaseurl = requestDetails.getFhirServerBase();
+
+			if (audFromToken.toLowerCase().equals(fhirbaseurl.toLowerCase())) {
+				returnValue = true;
+			}
+		} catch (Exception e) {
+			returnValue = true;
+		}
+
+		return returnValue;
 	}
 
 	private static boolean IsTokenGeneratedForThisTenant(String inputTenantId,
