@@ -3,6 +3,7 @@ package custom.interceptor;
 import ca.uhn.fhir.batch2.model.JobInstance;
 import ca.uhn.fhir.interceptor.api.Hook;
 import ca.uhn.fhir.interceptor.api.Pointcut;
+import ca.uhn.fhir.jpa.starter.common.FhirServerConfigCommon;
 import ca.uhn.fhir.rest.api.RequestTypeEnum;
 import ca.uhn.fhir.rest.api.server.RequestDetails;
 import ca.uhn.fhir.rest.server.exceptions.AuthenticationException;
@@ -54,6 +55,16 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 			CommonHelper.CONFORMANCE_PATH_WELLKNOWN_OPENID.equals(requestDetails.getRequestPath()) ||
 			CommonHelper.CONFORMANCE_PATH_WELLKNOWN_SMART.equals(requestDetails.getRequestPath()))
 		{
+			/*
+			try
+			{
+				org.slf4j.Logger ourLog = org.slf4j.LoggerFactory.getLogger(FhirServerConfigCommon.class);
+				ourLog.info("Request Path: " + requestDetails.getRequestPath());
+			}
+			catch (Exception e){
+			}
+			*/
+
 			if (CommonHelper.CONFORMANCE_PATH_METADATA.equals(requestDetails.getRequestPath()))
 			{
 				requestDetails.addParameter("_format", new String[]{"json"});
