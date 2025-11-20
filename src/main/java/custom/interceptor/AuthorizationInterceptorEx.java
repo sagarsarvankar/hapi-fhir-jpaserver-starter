@@ -34,7 +34,7 @@ import static custom.helper.CommonHelper.GetTokenDetailsFromTokenString;
 
 public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 
-
+	private static final String STRING_SPLIT_PARAM = ",";
 	/*
 	private TokenDetails GetTokenDetailsFromTokenString(String bearerToken) throws JsonProcessingException {
 		String DecodedToken = TokenHelper.DecodeToken(bearerToken);
@@ -166,6 +166,7 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 		boolean returnValue = false;
 
 		try {
+
 			String tenantidFromToken = tokendets.fhirtenant;
 
 			if (inputTenantId == null || inputTenantId.isEmpty())
@@ -180,6 +181,25 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 			if (inputTenantId.toLowerCase().equals(tenantidFromToken.toLowerCase())) {
 				returnValue = true;
 			}
+
+			//Is clientId Present in gloabl_tenants
+			if (!returnValue)
+			{
+				try{
+					HapiPropertiesConfig hapiConfig = new HapiPropertiesConfig();
+					String[] getglobal_clientids = hapiConfig.getglobal_clientids().split(STRING_SPLIT_PARAM);
+
+					for (String tempClientId : getglobal_clientids) {
+						if (tempClientId.toLowerCase().equals(tokendets.client_id.toLowerCase())) {
+							returnValue = true;
+							break;
+						}
+					}
+				} catch (Exception e) {
+				}
+			}
+			//Is clientId Present in gloabl_tenants
+
 		} catch (Exception e) {
 			returnValue = true;
 		}
