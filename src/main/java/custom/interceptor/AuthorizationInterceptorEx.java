@@ -20,6 +20,7 @@ import custom.object.TenantDetails;
 import custom.object.TokenDetails;
 import javassist.NotFoundException;
 import org.hl7.fhir.r4.model.Condition;
+import org.hl7.fhir.r4.model.IdType;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -335,6 +336,84 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 		return TokenHelper.isTokenExpired(tokendets);
 	}
 
+	private List<IAuthRule> BuildRuleListForPatientFacingClient (RequestDetails requestDetails,
+																					 List<IAuthRule> ruleList) {
+
+		try {
+			TokenDetails tokendets = new TokenDetails();
+			try {
+				tokendets = GetTokenDetailsFromTokenString(requestDetails);
+			} catch (Exception e) {
+			}
+
+			List<String> ScopesFromToken = TokenHelper.getScopesListByScopeString(tokendets.scope);
+
+			boolean IsPatientFacing = false;
+
+			for (String scope : ScopesFromToken) {
+				if (scope.toLowerCase().trim().startsWith("patient/")) {
+					IsPatientFacing = true;
+					break;
+				}
+			}
+			if (IsPatientFacing) {
+				String patientidFromToken = tokendets.patient;
+
+				RuleBuilder ruleListTemp = new RuleBuilder();
+
+				ruleListTemp
+					.allow()
+					.read()
+					.allResources()
+					.inCompartment(CommonHelper.RESOURCE_Patient, new IdType(CommonHelper.RESOURCE_Patient, patientidFromToken));
+				//.build();
+
+				ruleListTemp
+					.allow()
+					.read()
+					.resourcesOfType(CommonHelper.RESOURCE_Device).withAnyId();
+
+				ruleListTemp
+					.allow()
+					.read()
+					.resourcesOfType(CommonHelper.RESOURCE_Organization).withAnyId();
+
+				ruleListTemp
+					.allow()
+					.read()
+					.resourcesOfType(CommonHelper.RESOURCE_Practitioner).withAnyId();
+
+				ruleListTemp
+					.allow()
+					.read()
+					.resourcesOfType(CommonHelper.RESOURCE_PractitionerRole).withAnyId();
+
+				ruleListTemp
+					.allow()
+					.read()
+					.resourcesOfType(CommonHelper.RESOURCE_Location).withAnyId();
+
+				ruleListTemp
+					.allow()
+					.read()
+					.resourcesOfType(CommonHelper.RESOURCE_Medication).withAnyId();
+
+				ruleListTemp
+					.allow()
+					.read()
+					.resourcesOfType(CommonHelper.RESOURCE_Substance).withAnyId();
+
+				ruleListTemp.
+					denyAll("Access denied: Approved scopes do not permit access to this data.");
+
+				ruleList = ruleListTemp.build();
+			}
+		} catch (Exception e) {
+		}
+
+		return ruleList;
+	}
+
 	@Override
 	public List<IAuthRule> buildRuleList(RequestDetails requestDetails) {
 		// Define authorization rules based on validated token or other criteria
@@ -491,6 +570,20 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 						.build();
 
 					//ruleList = ConstructRuleBuilderWithGranularScopes(permissionCheckerObj);
+
+
+					// Checking if scopes contain patient/ related and not user/
+					// If patient/ scopes are present then filter all resources
+					// based on patientid present in the token,
+					// else it is provider facing app, allow for all other patients also
+
+					if (AllowRead) {
+						if (CommonHelper.Allow_impose_security_on_patient_facing_client()){
+							ruleList = BuildRuleListForPatientFacingClient(requestDetails, ruleList);
+						}
+					}
+
+					///////////////////////////////////////////////////////////////
 
 					// Does parameter in URL contain _include, then allow all read
 					boolean bIncludePresent = false;
