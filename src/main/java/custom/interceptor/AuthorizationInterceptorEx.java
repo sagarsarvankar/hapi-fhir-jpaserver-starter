@@ -90,12 +90,12 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 			// checking for valid tenantid
 			String xfhirtenantid = "";
 			try {
-				xfhirtenantid = requestDetails.getHeader("X-FHIR-TENANT-ID");
+				xfhirtenantid = requestDetails.getHeader(CommonHelper.TENANT_HEADER_NAME);
 			} catch (Exception e) {
 			}
 			if (xfhirtenantid != null && !xfhirtenantid.isEmpty()) {
 				if (!IsTenantValid(xfhirtenantid)) {
-					throw new AuthenticationException("Invalid tenant id sent in header X-FHIR-TENANT-ID");
+					throw new AuthenticationException("Invalid tenant id sent in header " + CommonHelper.TENANT_HEADER_NAME);
 				}
 			}
 			//

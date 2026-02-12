@@ -150,7 +150,7 @@ public class CommonHelper {
 			tenantname = CommonHelper.TENANT_NAME_DEFAULT;
 		}
 
-		return tenantname;
+		return tenantname.toLowerCase();
 	}
 
 	public static MoreConfig  GetMoreConfigFromConfig() {

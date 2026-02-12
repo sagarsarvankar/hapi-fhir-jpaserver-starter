@@ -17,6 +17,15 @@
       "driverClassName": "org.postgresql.Driver",
       "max_active": "15",
       "defaulttenant": "false"
+    },
+    {
+      "name": "goodone",
+      "url": "jdbc:postgresql://localhost:5432/fhirdb_hapi_goodone",
+      "username": "postgres",
+      "password": "postgres",
+      "driverClassName": "org.postgresql.Driver",
+      "max_active": "15",
+      "defaulttenant": "false"
     }
   ]
 }
