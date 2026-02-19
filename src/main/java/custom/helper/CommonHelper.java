@@ -5,13 +5,22 @@ import ca.uhn.fhir.rest.server.exceptions.AuthenticationException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import custom.object.MoreConfig;
 import custom.object.TenantDetails;
 import custom.object.TokenDetails;
 import org.apache.commons.io.IOUtils;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.util.EntityUtils;
 import org.springframework.core.io.ClassPathResource;
 
-import java.io.InputStream;
+import javax.net.ssl.HttpsURLConnection;
+import java.io.*;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -90,6 +99,52 @@ public class CommonHelper {
 		}
 
 		return returnvalue;
+	}
+
+	public static String HttpPOST(String requestBody, String Url,
+											String username, String password,
+											String ContentType) {
+
+		String responseBody = "";
+
+		try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
+			HttpPost postRequest = new HttpPost(Url);
+
+			// Set Basic Auth for client credentials
+			String auth = username + ":" + password;
+			String encodedAuth = java.util.Base64.getEncoder().encodeToString(auth.getBytes());
+			postRequest.setHeader("Authorization", "Basic " + encodedAuth);
+
+			postRequest.setHeader("Content-Type", ContentType); //"application/x-www-form-urlencoded");
+			postRequest.setHeader("Accept", "application/json");
+
+			// Add token in the body
+			//String requestBody = "token=" + token + "&token_type=access_token";
+			if (requestBody != null) {
+				StringEntity entity = new StringEntity(requestBody);
+				postRequest.setEntity(entity);
+			}
+
+			// Execute request
+			try (CloseableHttpResponse response = httpClient.execute(postRequest)) {
+				if (response.getStatusLine().getStatusCode() == 200) {
+					responseBody = EntityUtils.toString(response.getEntity());
+
+					/*
+					Gson gsonResponse = new Gson();
+					JsonObject parsedresponse = gsonResponse.fromJson(responseBody, JsonObject.class);
+					String activeflag = parsedresponse.get("active").getAsString();
+					if (activeflag.toLowerCase().equals("false")) {
+						returnval = false;
+					}
+					*/
+				}
+			}
+		} catch (Exception e) {
+			responseBody = "error: " + e.getMessage();
+		}
+
+		return responseBody;
 	}
 
 	public static boolean Allow_impose_security_on_patient_facing_client(){

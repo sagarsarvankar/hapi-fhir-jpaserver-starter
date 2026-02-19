@@ -12,18 +12,19 @@ import ca.uhn.fhir.rest.server.interceptor.auth.AuthorizationInterceptor;
 import ca.uhn.fhir.rest.server.interceptor.auth.IAuthRule;
 import ca.uhn.fhir.rest.server.interceptor.auth.RuleBuilder;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import custom.dbaccess.DatabaseHelper;
 import custom.helper.*;
-import custom.object.MoreConfig;
-import custom.object.SubScope;
-import custom.object.TenantDetails;
-import custom.object.TokenDetails;
+import custom.object.*;
 import javassist.NotFoundException;
 import org.hl7.fhir.r4.model.Condition;
 import org.hl7.fhir.r4.model.IdType;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -115,6 +116,28 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 			}
 			//
 
+			// Audit
+			try
+			{
+				AuditItems auditItems = GenerateAuditObject(requestDetails,tokendets);
+
+				if (auditItems != null){
+					HapiPropertiesConfig hapiPropertiesConfig = new HapiPropertiesConfig();
+					String PostUrl = hapiPropertiesConfig.get_fhirserverauditlog_endpoint();
+					String apiuser = hapiPropertiesConfig.get_api_username();
+					String apipass = hapiPropertiesConfig.get_api_password();
+					String contenttype = "application/json";
+					ObjectMapper mapper = new ObjectMapper();
+					String auditjson = mapper.writeValueAsString(auditItems);
+					String auditjsonbase64 = java.util.Base64.getEncoder().encodeToString(auditjson.getBytes());
+					String requestbody = "\"" + auditjsonbase64 + "\"";
+
+					String postresponse = CommonHelper.HttpPOST(requestbody, PostUrl, apiuser, apipass, contenttype);
+				}
+
+			} catch (Exception e) {
+			}
+			// Audit
 		}
 		// Check if the token is missing
 
@@ -140,7 +163,55 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 			TakeActionIfBulkJobCancelled(requestDetails);
 		}
 		//
-		//
+
+	}
+
+
+	private static AuditItems GenerateAuditObject(RequestDetails requestDetails,
+																 TokenDetails tokendets){
+		AuditItems auditItems = new AuditItems();
+		try{
+
+			auditItems.action = "write";
+			RequestTypeEnum requestType = requestDetails.getRequestType();
+
+			switch (requestType)
+			{
+				case GET -> auditItems.action = "read";
+				default -> auditItems.action = "read";
+			}
+
+			try
+			{
+				auditItems.eventTime =
+					DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+						.withZone(ZoneOffset.UTC)
+						.format(Instant.now());
+			} catch (Exception e) {
+				auditItems.eventTime = null;
+			}
+
+			//auditItems.ipaddress = requestDetails
+			auditItems.targeturl = requestDetails.getRequestPath();
+
+			String xfhirtenantid = "default";
+			try {
+				xfhirtenantid = requestDetails.getHeader(CommonHelper.TENANT_HEADER_NAME);
+				xfhirtenantid = xfhirtenantid.toLowerCase();
+			} catch (Exception e) {
+			}
+
+			auditItems.tenant = xfhirtenantid;
+			auditItems.user = tokendets.sub;
+			auditItems.username = tokendets.userloggedin;
+			auditItems.patient = tokendets.patient_id;
+			auditItems.clientid = tokendets.client_id;
+		}
+		catch (Exception e){
+			auditItems = null;
+		}
+
+		return auditItems;
 	}
 
 	private static boolean IsTokenGeneratedForThisFHIRServer(RequestDetails requestDetails,

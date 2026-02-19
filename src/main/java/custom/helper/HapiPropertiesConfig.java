@@ -44,6 +44,18 @@ public class HapiPropertiesConfig {
 		return properties.getProperty("server.oauth.check_token_generated_for_this_fhir_server");
 	}
 
+	public String get_fhirserverauditlog_endpoint() {
+		return properties.getProperty("server.oauth.fhirserverauditlog_endpoint");
+	}
+
+	public String get_api_username() {
+		return properties.getProperty("server.oauth.api_username");
+	}
+
+	public String get_api_password() {
+		return properties.getProperty("server.oauth.api_password");
+	}
+
 	public String get_impose_security_on_patient_facing_client() {
 		return properties.getProperty("server.oauth.impose_security_on_patient_facing_client");
 	}
