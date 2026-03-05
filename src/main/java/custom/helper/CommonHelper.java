@@ -32,6 +32,7 @@ public class CommonHelper {
 	public static String MORE_CONFIG_FILE_NAME = "moreconfig.json";
 	public static String HAPI_PROPERTIES_FILE_NAME = "hapi.properties";
 
+	public static String OPERATION_TYPE_EVERYTHING = "$everything";
 	public static String OPERATION_TYPE_EXPORT = "$export";
 	public static String OPERATION_TYPE_EXPORT_POLL_STATUS = "$export-poll-status";
 	public static String URL_PARAMETER_INCLUDE = "_include";

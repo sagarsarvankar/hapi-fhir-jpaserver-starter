@@ -31,6 +31,32 @@ public class PermissionChecker {
 		return  bApproved;
 	}
 
+	public boolean hasScopesALL(Scope.Permission requiredPermission, List<String> grantedScopes){
+		boolean bApproved = false;
+		try{
+			for (String scope : grantedScopes) {
+				Scope sc = new Scope(scope);
+				// "Resource" is used for "*" which applies to all resource types
+
+				if (sc.getResourceType().isEmpty() || sc.getResourceType().isBlank())
+				{
+				}
+				else {
+					if (sc.getResourceType().equals("*")) {
+						if (hasPermission(sc.getPermission(), requiredPermission)) {
+							bApproved = true;
+							break;
+						}
+					}
+				}
+			}
+		} catch (Exception e) {
+			bApproved = false;
+		}
+
+		return bApproved;
+	}
+
 	private boolean isApprovedByScopes(String resourceType, Scope.Permission requiredPermission,
 												  List<String> grantedScopes,RequestDetails requestDetails) {
 		if (grantedScopes == null) {

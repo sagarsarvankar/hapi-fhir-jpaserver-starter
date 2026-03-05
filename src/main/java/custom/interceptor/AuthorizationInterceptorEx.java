@@ -615,6 +615,19 @@ public class AuthorizationInterceptorEx extends AuthorizationInterceptor {
 							.atAnyLevel().andAllowAllResponsesWithAllResourcesAccess()
 							.build();
 					}
+
+					else if (operationType.toLowerCase().equals(CommonHelper.OPERATION_TYPE_EVERYTHING)) {
+
+						List<String> ScopesFromToken = TokenHelper.getScopesListByScopeString(tokendets.scope);
+						PermissionChecker TempPermissionCheckerObj = new PermissionChecker();
+						if (TempPermissionCheckerObj.hasScopesALL(Scope.Permission.READ, ScopesFromToken)) {
+							ruleList = new RuleBuilder()
+								.allow().operation().named(CommonHelper.OPERATION_TYPE_EVERYTHING)
+								.atAnyLevel().andAllowAllResponsesWithAllResourcesAccess()
+								.build();
+						}
+					}
+
 					else
 					{
 						ruleList = new RuleBuilder()
