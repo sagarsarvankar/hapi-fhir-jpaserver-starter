@@ -1,6 +1,11 @@
 package ca.uhn.fhir.jpa.starter;
 
+import ca.uhn.fhir.batch2.api.IJobCoordinator;
+import ca.uhn.fhir.batch2.api.IJobMaintenanceService;
+import ca.uhn.fhir.batch2.api.IJobPersistence;
 import ca.uhn.fhir.batch2.jobs.config.Batch2JobsConfig;
+import ca.uhn.fhir.context.FhirContext;
+import ca.uhn.fhir.interceptor.api.IInterceptorBroadcaster;
 import ca.uhn.fhir.jpa.batch2.JpaBatch2Config;
 import ca.uhn.fhir.jpa.starter.annotations.OnEitherVersion;
 import ca.uhn.fhir.jpa.starter.cdshooks.StarterCdsHooksConfig;
@@ -14,9 +19,11 @@ import ca.uhn.fhir.jpa.subscription.submit.config.SubscriptionSubmitterConfig;
 import ca.uhn.fhir.rest.server.RestfulServer;
 import ca.uhn.fhir.wellknown.WellKnownServlet;
 import custom.helper.CommonHelper;
+import custom.helper.CommonTaskScheduler;
 import custom.helper.HapiPropertiesConfig;
 import custom.interceptor.*;
 import custom.metadataex.CustomCapabilityStatementProvider;
+import custom.multitenancy.TenantContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
 import org.springframework.boot.SpringApplication;
@@ -26,13 +33,15 @@ import org.springframework.boot.autoconfigure.thymeleaf.ThymeleafAutoConfigurati
 import org.springframework.boot.web.servlet.ServletComponentScan;
 import org.springframework.boot.web.servlet.ServletRegistrationBean;
 import org.springframework.boot.web.servlet.support.SpringBootServletInitializer;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.Conditional;
-import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.*;
+import org.springframework.core.task.TaskExecutor;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.io.IOException;
 
+@EnableAspectJAutoProxy
+@EnableScheduling
 @ServletComponentScan(basePackageClasses = {RestfulServer.class})
 @SpringBootApplication(exclude = {ElasticsearchRestClientAutoConfiguration.class, ThymeleafAutoConfiguration.class})
 @ComponentScan(basePackages = {"ca.uhn.fhir.wellknown","ca.uhn.fhir.jpa.starter", "custom", "custom.multitenancy", "custom.helper"})
@@ -114,8 +123,37 @@ public class Application extends SpringBootServletInitializer {
 
 		// Multitenancy
 		restfulServer.registerInterceptor(new TenantIdentificationInterceptor());
-		restfulServer.registerInterceptor(new TenantContextCleanupInterceptor());
+
+		// Removing temporarily
+		//restfulServer.registerInterceptor(new TenantContextCleanupInterceptor());
 		// Multitenancy
+
+		// BulkExport
+		//restfulServer.registerInterceptor(new CommonTaskScheduler());
+		//IJobMaintenanceService jobMaintenanceService = beanFactory.getBean(IJobMaintenanceService.class);
+		//restfulServer.registerInterceptor(new CommonTaskScheduler(jobMaintenanceService));
+
+		//IJobMaintenanceService jobMaintenanceService = beanFactory.getBean(IJobMaintenanceService.class);
+		//restfulServer.registerInterceptor(new BulkExportMaintenanceInterceptor(jobMaintenanceService));
+
+		/*
+		IJobMaintenanceService jobMaintenanceService = beanFactory.getBean(IJobMaintenanceService.class);
+		IInterceptorBroadcaster interceptorBroadcaster = beanFactory.getBean(IInterceptorBroadcaster.class);
+		FhirContext fhirContext = restfulServer.getFhirContext();
+		*/
+
+		/*
+		restfulServer.registerInterceptor(new MultiTenantBulkExportInterceptor(
+			jobMaintenanceService, interceptorBroadcaster, fhirContext));
+		*/
+		/*
+		IJobCoordinator jobCoordinator = beanFactory.getBean(IJobCoordinator.class);
+		IJobPersistence jobPersistence = beanFactory.getBean(IJobPersistence.class);
+
+		restfulServer.registerInterceptor(new ComprehensiveMultiTenantJobProcessor(jobCoordinator,
+			jobPersistence, interceptorBroadcaster, fhirContext));
+		*/
+		// BulkExport
 
 		return servletRegistrationBean;
 	}
@@ -154,6 +192,32 @@ public class Application extends SpringBootServletInitializer {
 		return bean;
 	}
 
+	/*
+	@Bean(name = "hapiBatch2TaskExecutor")
+	public TaskExecutor hapiBatch2TaskExecutor() {
+		ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+		executor.setCorePoolSize(5);
+		executor.setMaxPoolSize(10);
+
+		// This decorator bridges the gap between the scheduler thread and the worker thread
+		executor.setTaskDecorator(runnable -> {
+			// Captures tenantId from the scheduler loop thread
+			String tenantId = TenantContext.getCurrentTenant();
+			return () -> {
+				try {
+					// Applies tenantId to the worker thread
+					TenantContext.setCurrentTenant(tenantId);
+					runnable.run();
+				} finally {
+					TenantContext.clear();
+				}
+			};
+		});
+
+		executor.initialize();
+		return executor;
+	}
+	*/
 }
 
 

@@ -87,6 +87,10 @@ public class HapiPropertiesConfig {
 		return properties.getProperty("server.enablesecurity");
 	}
 
+	public String getEnableDebugLog() {
+		return properties.getProperty("server.enabledebuglog");
+	}
+
 	public String getToken_endpoint_auth_signing_alg_values_supported() {
 		return properties.getProperty("server.token_endpoint_auth_signing_alg_values_supported");
 	}

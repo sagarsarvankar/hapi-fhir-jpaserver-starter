@@ -24,6 +24,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 public class CommonHelper {
 	public static String AUTHORIZATION_HEADER = "Authorization";
@@ -40,6 +41,10 @@ public class CommonHelper {
 	public static String URL_PARAMETER_CATEGORY = "category";
 	public static String URL_PARAMETER_PATIENT = "patient";
 
+	public static String EXPORT_REQUEST_TENANT = "$exportrequesttenant";
+	public static Pattern JOB_ID_PATTERN = Pattern.compile(
+		"_jobId=([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})"
+	);
 	public static String RESOURCE_Provenance = "Provenance";
 	public static String RESOURCE_Patient = "Patient";
 	public static String RESOURCE_Device = "Device";
@@ -180,6 +185,25 @@ public class CommonHelper {
 		}
 
 		return returnvalue;
+	}
+
+	public static boolean EnableDebugLog() {
+		boolean returnValue = false;
+
+		try
+		{
+			HapiPropertiesConfig hapiConfig = new HapiPropertiesConfig();
+			String getEnableDebugLog = hapiConfig.getEnableDebugLog();
+
+			if (getEnableDebugLog.toLowerCase().equals("true")){
+				returnValue = true;
+			}
+		}
+		catch (Exception e){
+
+		}
+
+		return returnValue;
 	}
 
 	public static boolean AllowCheckingOfRevokedTokenDuringAuthorization(){
