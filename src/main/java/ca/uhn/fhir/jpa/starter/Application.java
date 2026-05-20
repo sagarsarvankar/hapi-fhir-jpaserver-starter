@@ -28,7 +28,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.autoconfigure.quartz.QuartzAutoConfiguration;
+import org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchRestClientAutoConfiguration;
 import org.springframework.boot.autoconfigure.thymeleaf.ThymeleafAutoConfiguration;
 import org.springframework.boot.web.servlet.ServletComponentScan;
 import org.springframework.boot.web.servlet.ServletRegistrationBean;
@@ -43,7 +43,7 @@ import java.io.IOException;
 @EnableAspectJAutoProxy
 @EnableScheduling
 @ServletComponentScan(basePackageClasses = {RestfulServer.class})
-@SpringBootApplication(exclude = {ThymeleafAutoConfiguration.class, QuartzAutoConfiguration.class})
+@SpringBootApplication(exclude = {ElasticsearchRestClientAutoConfiguration.class, ThymeleafAutoConfiguration.class})
 @ComponentScan(basePackages = {"ca.uhn.fhir.wellknown","ca.uhn.fhir.jpa.starter", "custom", "custom.multitenancy", "custom.helper"})
 // "custom.helper", "custom", "custom.multitenancy"
 @Import({
@@ -68,9 +68,10 @@ public class Application extends SpringBootServletInitializer {
 
 		SpringApplication.run(Application.class, args);
 
-		// Server is now accessible at e.g. http://localhost:8080/fhir/metadata
+		// Server is now accessible at eg. http://localhost:8080/fhir/metadata
 		// UI is now accessible at http://localhost:8080/
 	}
+
 
 	@Autowired
 	AutowireCapableBeanFactory beanFactory;

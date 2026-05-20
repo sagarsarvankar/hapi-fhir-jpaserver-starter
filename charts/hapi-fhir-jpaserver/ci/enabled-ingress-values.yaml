@@ -1,6 +1,6 @@
 ingress:
   enabled: true
 
-postgres:
+postgresql:
   auth:
-    password: secretpassword
+    postgresPassword: secretpassword

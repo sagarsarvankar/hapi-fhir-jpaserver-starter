@@ -1,12 +1,13 @@
 package ca.uhn.fhir.jpa.starter.cr;
 
-import ca.uhn.fhir.interceptor.model.RequestPartitionId;
-import ca.uhn.fhir.jpa.api.dao.DaoRegistry;
-import ca.uhn.fhir.jpa.cache.IResourceChangeListenerRegistry;
-import ca.uhn.fhir.jpa.cache.ResourceChangeListenerRegistryInterceptor;
-import ca.uhn.fhir.jpa.searchparam.SearchParameterMap;
-import ca.uhn.fhir.rest.server.RestfulServer;
-import ca.uhn.fhir.rest.server.provider.ResourceProviderFactory;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 import org.cqframework.cql.cql2elm.CqlCompilerOptions;
 import org.cqframework.cql.cql2elm.model.CompiledLibrary;
 import org.cqframework.cql.cql2elm.model.Model;
@@ -17,44 +18,51 @@ import org.opencds.cqf.cql.engine.runtime.Code;
 import org.opencds.cqf.fhir.cql.EvaluationSettings;
 import org.opencds.cqf.fhir.cql.engine.retrieve.RetrieveSettings;
 import org.opencds.cqf.fhir.cql.engine.terminology.TerminologySettings;
-import org.opencds.cqf.fhir.cr.hapi.common.CodeCacheResourceChangeListener;
-import org.opencds.cqf.fhir.cr.hapi.common.ElmCacheResourceChangeListener;
 import org.opencds.cqf.fhir.cr.measure.CareGapsProperties;
 import org.opencds.cqf.fhir.cr.measure.MeasureEvaluationOptions;
 import org.opencds.cqf.fhir.utility.ValidationProfile;
-import org.opencds.cqf.fhir.utility.client.TerminologyServerClientSettings;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
+import org.springframework.security.concurrent.DelegatingSecurityContextExecutorService;
 
-import java.util.EnumSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import ca.uhn.fhir.cr.common.CodeCacheResourceChangeListener;
+import ca.uhn.fhir.cr.common.CqlThreadFactory;
+import ca.uhn.fhir.cr.common.ElmCacheResourceChangeListener;
+import ca.uhn.fhir.jpa.api.dao.DaoRegistry;
+import ca.uhn.fhir.jpa.cache.IResourceChangeListenerRegistry;
+import ca.uhn.fhir.jpa.cache.ResourceChangeListenerRegistryInterceptor;
+import ca.uhn.fhir.jpa.searchparam.SearchParameterMap;
+import ca.uhn.fhir.rest.server.RestfulServer;
+import ca.uhn.fhir.rest.server.provider.ResourceProviderFactory;
 
 @Configuration
 @Conditional({CrConfigCondition.class})
 public class CrCommonConfig {
 
 	@Bean
-	RetrieveSettings retrieveSettings(CqlData cqlData) {
-		return cqlData.getRetrieveSettings();
+	@ConfigurationProperties(prefix = "hapi.fhir.cr")
+	CrProperties crProperties() {
+		return new CrProperties();
 	}
 
 	@Bean
-	TerminologySettings terminologySettings(CqlTerminologyProperties theCqlTerminologyProperties) {
-		return theCqlTerminologyProperties.getTerminologySettings();
+	RetrieveSettings retrieveSettings(CrProperties theCrProperties) {
+		return theCrProperties.getCql().getData();
 	}
 
 	@Bean
-	TerminologyServerClientSettings terminologyServerClientSettings(CrProperties theCrProperties) {
-		return theCrProperties.getTerminologyServerClientSettings();
+	TerminologySettings terminologySettings(CrProperties theCrProperties) {
+		return theCrProperties.getCql().getTerminology();
 	}
 
 	@Bean
 	public EvaluationSettings evaluationSettings(
-			CqlProperties cqlProperties,
+			CrProperties theCrProperties,
+			RetrieveSettings theRetrieveSettings,
+			TerminologySettings theTerminologySettings,
 			Map<VersionedIdentifier, CompiledLibrary> theGlobalLibraryCache,
 			Map<ModelIdentifier, Model> theGlobalModelCache,
 			Map<String, List<Code>> theGlobalValueSetCache) {
@@ -63,89 +71,94 @@ public class CrCommonConfig {
 
 		var cqlEngineOptions = cqlOptions.getCqlEngineOptions();
 		Set<CqlEngine.Options> options = EnumSet.noneOf(CqlEngine.Options.class);
-
-		if (cqlProperties.getRuntime().isEnableExpressionCaching()) {
+		var cqlRuntimeProperties = theCrProperties.getCql().getRuntime();
+		if (cqlRuntimeProperties.isEnableExpressionCaching()) {
 			options.add(CqlEngine.Options.EnableExpressionCaching);
 		}
-		if (cqlProperties.getRuntime().isEnableValidation()) {
+		if (cqlRuntimeProperties.isEnableValidation()) {
 			options.add(CqlEngine.Options.EnableValidation);
 		}
 		cqlEngineOptions.setOptions(options);
-		if (cqlProperties.getRuntime().isDebugLoggingEnabled()) {
+		if (cqlRuntimeProperties.isDebugLoggingEnabled()) {
 			cqlEngineOptions.setDebugLoggingEnabled(true);
 		}
 		cqlOptions.setCqlEngineOptions(cqlEngineOptions);
 
 		var cqlCompilerOptions = new CqlCompilerOptions();
 
-		if (cqlProperties.getCompiler().isEnableDateRangeOptimization()) {
+		var cqlCompilerProperties = theCrProperties.getCql().getCompiler();
+
+		if (cqlCompilerProperties.isEnableDateRangeOptimization()) {
 			cqlCompilerOptions.setOptions(CqlCompilerOptions.Options.EnableDateRangeOptimization);
 		}
-		if (cqlProperties.getCompiler().isEnableAnnotations()) {
+		if (cqlCompilerProperties.isEnableAnnotations()) {
 			cqlCompilerOptions.setOptions(CqlCompilerOptions.Options.EnableAnnotations);
 		}
-		if (cqlProperties.getCompiler().isEnableLocators()) {
+		if (cqlCompilerProperties.isEnableLocators()) {
 			cqlCompilerOptions.setOptions(CqlCompilerOptions.Options.EnableLocators);
 		}
-		if (cqlProperties.getCompiler().isEnableResultsType()) {
+		if (cqlCompilerProperties.isEnableResultsType()) {
 			cqlCompilerOptions.setOptions(CqlCompilerOptions.Options.EnableResultTypes);
 		}
-		cqlCompilerOptions.setVerifyOnly(cqlProperties.getCompiler().isVerifyOnly());
-		if (cqlProperties.getCompiler().isEnableDetailedErrors()) {
+		cqlCompilerOptions.setVerifyOnly(cqlCompilerProperties.isVerifyOnly());
+		if (cqlCompilerProperties.isEnableDetailedErrors()) {
 			cqlCompilerOptions.setOptions(CqlCompilerOptions.Options.EnableDetailedErrors);
 		}
-		cqlCompilerOptions.setErrorLevel(cqlProperties.getCompiler().getErrorSeverityLevel());
-		if (cqlProperties.getCompiler().isDisableListTraversal()) {
+		cqlCompilerOptions.setErrorLevel(cqlCompilerProperties.getErrorSeverityLevel());
+		if (cqlCompilerProperties.isDisableListTraversal()) {
 			cqlCompilerOptions.setOptions(CqlCompilerOptions.Options.DisableListTraversal);
 		}
-		if (cqlProperties.getCompiler().isDisableListDemotion()) {
+		if (cqlCompilerProperties.isDisableListDemotion()) {
 			cqlCompilerOptions.setOptions(CqlCompilerOptions.Options.DisableListDemotion);
 		}
-		if (cqlProperties.getCompiler().isDisableListPromotion()) {
+		if (cqlCompilerProperties.isDisableListPromotion()) {
 			cqlCompilerOptions.setOptions(CqlCompilerOptions.Options.DisableListPromotion);
 		}
-		if (cqlProperties.getCompiler().isEnableIntervalDemotion()) {
+		if (cqlCompilerProperties.isEnableIntervalDemotion()) {
 			cqlCompilerOptions.setOptions(CqlCompilerOptions.Options.EnableIntervalDemotion);
 		}
-		if (cqlProperties.getCompiler().isEnableIntervalPromotion()) {
+		if (cqlCompilerProperties.isEnableIntervalPromotion()) {
 			cqlCompilerOptions.setOptions(CqlCompilerOptions.Options.EnableIntervalPromotion);
 		}
-		if (cqlProperties.getCompiler().isDisableMethodInvocation()) {
+		if (cqlCompilerProperties.isDisableMethodInvocation()) {
 			cqlCompilerOptions.setOptions(CqlCompilerOptions.Options.DisableMethodInvocation);
 		}
-		if (cqlProperties.getCompiler().isRequireFromKeyword()) {
+		if (cqlCompilerProperties.isRequireFromKeyword()) {
 			cqlCompilerOptions.setOptions(CqlCompilerOptions.Options.RequireFromKeyword);
 		}
-		cqlCompilerOptions.setValidateUnits(cqlProperties.getCompiler().isValidateUnits());
-		if (cqlProperties.getCompiler().isDisableDefaultModelInfoLoad()) {
+		cqlCompilerOptions.setValidateUnits(cqlCompilerProperties.isValidateUnits());
+		if (cqlCompilerProperties.isDisableDefaultModelInfoLoad()) {
 			cqlCompilerOptions.setOptions(CqlCompilerOptions.Options.DisableDefaultModelInfoLoad);
 		}
-		cqlCompilerOptions.setSignatureLevel(cqlProperties.getCompiler().getSignatureLevel());
-		cqlCompilerOptions.setCompatibilityLevel(cqlProperties.getCompiler().getCompatibilityLevel());
-		cqlCompilerOptions.setAnalyzeDataRequirements(
-				cqlProperties.getCompiler().isAnalyzeDataRequirements());
-		cqlCompilerOptions.setCollapseDataRequirements(
-				cqlProperties.getCompiler().isCollapseDataRequirements());
+		cqlCompilerOptions.setSignatureLevel(cqlCompilerProperties.getSignatureLevel());
+		cqlCompilerOptions.setCompatibilityLevel(cqlCompilerProperties.getCompatibilityLevel());
+		cqlCompilerOptions.setAnalyzeDataRequirements(cqlCompilerProperties.isAnalyzeDataRequirements());
+		cqlCompilerOptions.setCollapseDataRequirements(cqlCompilerProperties.isCollapseDataRequirements());
 
 		cqlOptions.setCqlCompilerOptions(cqlCompilerOptions);
 		evaluationSettings.setLibraryCache(theGlobalLibraryCache);
 		evaluationSettings.setModelCache(theGlobalModelCache);
 		evaluationSettings.setValueSetCache(theGlobalValueSetCache);
-		evaluationSettings.setRetrieveSettings(cqlProperties.getRetrieveSettings());
-		evaluationSettings.setTerminologySettings(cqlProperties.getTerminology());
-		evaluationSettings.setRegisteredNamespaces(cqlProperties.getNamespaces());
+		evaluationSettings.setRetrieveSettings(theRetrieveSettings);
+		evaluationSettings.setTerminologySettings(theTerminologySettings);
 		return evaluationSettings;
 	}
 
-	@Bean(name = "measure.CareGapsProperties")
-	org.opencds.cqf.fhir.cr.measure.CareGapsProperties careGapsProperties(CrProperties theCrProperties) {
+	@Primary
+	@Bean
+	public ExecutorService cqlExecutor() {
+		CqlThreadFactory factory = new CqlThreadFactory();
+		ExecutorService executor = Executors.newFixedThreadPool(2, factory);
+		executor = new DelegatingSecurityContextExecutorService(executor);
+
+		return executor;
+	}
+
+	@Bean
+	CareGapsProperties careGapsProperties(CrProperties theCrProperties) {
 		var careGapsProperties = new CareGapsProperties();
-		// This check for the resource type really should be happening down in CR where the setting is actually used but
-		// that will have to wait for a future CR release
-		careGapsProperties.setCareGapsReporter(
-				theCrProperties.getCareGaps().getReporter().replace("Organization/", ""));
-		careGapsProperties.setCareGapsCompositionSectionAuthor(
-				theCrProperties.getCareGaps().getSection_author().replace("Organization/", ""));
+		careGapsProperties.setCareGapsReporter(theCrProperties.getCareGaps().getReporter());
+		careGapsProperties.setCareGapsCompositionSectionAuthor(theCrProperties.getCareGaps().getSection_author());
 		return careGapsProperties;
 	}
 
@@ -189,7 +202,7 @@ public class CrCommonConfig {
 		ElmCacheResourceChangeListener listener =
 				new ElmCacheResourceChangeListener(theDaoRegistry, theEvaluationSettings.getLibraryCache());
 		theResourceChangeListenerRegistry.registerResourceResourceChangeListener(
-				"Library", RequestPartitionId.allPartitions(), SearchParameterMap.newSynchronous(), listener, 1000);
+				"Library", SearchParameterMap.newSynchronous(), listener, 1000);
 		return listener;
 	}
 
@@ -203,7 +216,7 @@ public class CrCommonConfig {
 				new CodeCacheResourceChangeListener(theDaoRegistry, theEvaluationSettings.getValueSetCache());
 		// registry
 		theResourceChangeListenerRegistry.registerResourceResourceChangeListener(
-				"ValueSet", RequestPartitionId.allPartitions(), SearchParameterMap.newSynchronous(), listener, 1000);
+				"ValueSet", SearchParameterMap.newSynchronous(), listener, 1000);
 
 		return listener;
 	}
@@ -211,5 +224,5 @@ public class CrCommonConfig {
 	@Bean
 	public ResourceChangeListenerRegistryInterceptor resourceChangeListenerRegistryInterceptor() {
 		return new ResourceChangeListenerRegistryInterceptor();
-	}
+	}   
 }
